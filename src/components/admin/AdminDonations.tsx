@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, CreditCard as Edit, Trash2, ExternalLink, Copy, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -149,26 +149,55 @@ const AdminDonations = () => {
 
   const downloadReceipt = async (donationId: string) => {
     try {
-      const { data, error } = await supabase.functions.invoke('generate-receipt', {
-        body: { donationId }
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-receipt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+        },
+        body: JSON.stringify({
+          donationId: donationId
+        })
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Erro ao gerar comprovante');
+      }
 
-      const blob = new Blob([data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `comprovante-${donationId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      const contentType = response.headers.get('Content-Type');
+      const blob = await response.blob();
 
-      toast({
-        title: "Sucesso",
-        description: "Comprovante baixado com sucesso!",
-      });
+      // Se retornou HTML, abre em nova janela para impressão
+      if (contentType?.includes('text/html')) {
+        const url = window.URL.createObjectURL(blob);
+        const printWindow = window.open(url, '_blank');
+        if (printWindow) {
+          printWindow.onload = () => {
+            printWindow.print();
+          };
+        }
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+
+        toast({
+          title: "Sucesso",
+          description: "Comprovante aberto para impressão!",
+        });
+      } else {
+        // Se retornou PDF, faz download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `comprovante-${donationId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        toast({
+          title: "Sucesso",
+          description: "Comprovante baixado com sucesso!",
+        });
+      }
     } catch (error: any) {
       console.error('Erro ao baixar comprovante:', error);
       toast({
