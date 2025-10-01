@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CircleCheck as CheckCircle, Loader as Loader2, Download, Chrome as Home } from "lucide-react";
@@ -82,11 +82,11 @@ const DoacoesObrigado = () => {
     setDownloading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-receipt`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-receipt`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
         },
         body: JSON.stringify({
           donationId: donation.id
