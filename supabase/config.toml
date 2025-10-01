@@ -1,1 +1,10 @@
 project_id = "jusmceaydtffxejdzrii"
+
+[functions.create-payment-intent]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.generate-receipt]
+verify_jwt = false

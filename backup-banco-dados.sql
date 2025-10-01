@@ -15,7 +15,7 @@ CREATE TYPE public.event_status AS ENUM ('confirmado', 'cancelado', 'adiado');
 CREATE TYPE public.content_type AS ENUM ('texto', 'video', 'audio');
 
 -- ============================================
--- 2. CRIAR TABELAS
+-- 2. CRIAR TABELAS 
 -- ============================================
 
 -- Tabela de configurações do site
