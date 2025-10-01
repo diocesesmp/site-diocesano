@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -191,13 +191,15 @@ const Doacoes = () => {
       const stripe = await loadStripe(publishableKey);
       if (!stripe) throw new Error('Erro ao carregar Stripe');
 
-      // 4. CHAMAR EDGE FUNCTION DO SUPABASE (Ponto de correção)
+      // 4. CHAMAR EDGE FUNCTION DO SUPABASE
+      const { data: { session } } = await supabase.auth.getSession();
+
       const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // REMOVIDO: O cabeçalho 'Authorization' para evitar o erro 401.
-          // O deploy da Edge Function deve usar o flag '--no-verify-jwt'.
+          'Authorization': `Bearer ${session?.access_token || SUPABASE_PUBLISHABLE_KEY}`,
+          'apikey': SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({
           amount: amount,
