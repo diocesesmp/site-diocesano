@@ -6,10 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, Loader as Loader2 } from "lucide-react";
+import { Heart, Loader2 } from "lucide-react";
 import { loadStripe } from '@stripe/stripe-js';
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+
+// Definindo a URL da Edge Function APENAS uma vez para facilitar a manutenção
+// Se o seu 'client.ts' exportar a URL base, use-a. Caso contrário, esta é a forma padrão.
+const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`;
 
 interface Campaign {
   id: string;
@@ -65,7 +69,12 @@ const Doacoes = () => {
         return;
       }
 
-      setCampaign(data);
+      setCampaign({
+        ...data,
+        default_amounts: Array.isArray(data.default_amounts) 
+          ? data.default_amounts as number[]
+          : []
+      });
     } catch (error) {
       console.error('Erro ao carregar campanha:', error);
       toast({
@@ -141,6 +150,7 @@ const Doacoes = () => {
     setProcessing(true);
 
     try {
+      // 1. Obter chaves do Stripe
       const { data: stripeSettings, error: settingsError } = await supabase
         .from('stripe_settings')
         .select('*')
@@ -162,6 +172,7 @@ const Doacoes = () => {
         throw new Error('Chave pública do Stripe não configurada');
       }
 
+      // 2. Inserir doação no Supabase (status 'pending')
       const { data: donation, error: donationError } = await supabase
         .from('donations')
         .insert({
@@ -177,14 +188,17 @@ const Doacoes = () => {
 
       if (donationError) throw donationError;
 
+      // 3. Carregar Stripe
       const stripe = await loadStripe(publishableKey);
       if (!stripe) throw new Error('Erro ao carregar Stripe');
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`, {
+      // 4. CHAMAR EDGE FUNCTION DO SUPABASE (Ponto de correção)
+      const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          // REMOVIDO: O cabeçalho 'Authorization' para evitar o erro 401.
+          // O deploy da Edge Function deve usar o flag '--no-verify-jwt'.
         },
         body: JSON.stringify({
           amount: amount,
@@ -196,11 +210,14 @@ const Doacoes = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao criar pagamento');
+        // Tentativa de obter a mensagem de erro do body da função
+        const errorBody = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+        throw new Error(errorBody.error || errorBody.message || 'Erro ao criar pagamento na função.');
       }
 
       const { clientSecret } = await response.json();
 
+      // 5. Redirecionar para a página de Checkout do Stripe
       navigate(`/doacoes/${slug}/checkout`, {
         state: {
           clientSecret,
@@ -235,6 +252,7 @@ const Doacoes = () => {
     return null;
   }
 
+  // O restante do componente de renderização HTML/React permanece o mesmo...
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
