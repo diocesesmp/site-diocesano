@@ -47,13 +47,17 @@ const AdminStripe = () => {
       if (error) throw error;
 
       if (data) {
-        setSettings(data);
+        const environment = (data.stripe_environment === 'live' ? 'live' : 'test') as 'test' | 'live';
+        setSettings({
+          ...data,
+          stripe_environment: environment
+        });
         setFormData({
           stripe_test_publishable_key: data.stripe_test_publishable_key || '',
           stripe_test_secret_key: data.stripe_test_secret_key || '',
           stripe_live_publishable_key: data.stripe_live_publishable_key || '',
           stripe_live_secret_key: data.stripe_live_secret_key || '',
-          stripe_environment: data.stripe_environment || 'test'
+          stripe_environment: environment
         });
       }
     } catch (error) {

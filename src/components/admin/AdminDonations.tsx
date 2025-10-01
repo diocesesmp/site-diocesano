@@ -8,10 +8,12 @@ import { Switch } from "@/components/ui/switch";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, CreditCard as Edit, Trash2, ExternalLink, Copy } from "lucide-react";
+import { Plus, CreditCard as Edit, Trash2, ExternalLink, Copy, Download } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface DonationCampaign {
   id: string;
@@ -32,8 +34,24 @@ interface DonationStats {
   pending_amount: number;
 }
 
+interface Donation {
+  id: string;
+  donor_name: string;
+  donor_email: string;
+  donor_phone: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  stripe_payment_intent_id: string | null;
+  campaign_id: string;
+  donation_campaigns: {
+    title: string;
+  };
+}
+
 const AdminDonations = () => {
   const [campaigns, setCampaigns] = useState<DonationCampaign[]>([]);
+  const [donations, setDonations] = useState<Donation[]>([]);
   const [stats, setStats] = useState<DonationStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -52,6 +70,7 @@ const AdminDonations = () => {
   useEffect(() => {
     fetchCampaigns();
     fetchStats();
+    fetchDonations();
   }, []);
 
   const fetchCampaigns = async () => {
@@ -62,7 +81,15 @@ const AdminDonations = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCampaigns(data || []);
+      
+      const campaigns = (data || []).map(campaign => ({
+        ...campaign,
+        default_amounts: Array.isArray(campaign.default_amounts) 
+          ? campaign.default_amounts as number[]
+          : []
+      }));
+      
+      setCampaigns(campaigns);
     } catch (error) {
       console.error('Erro ao carregar campanhas:', error);
       toast({
@@ -93,6 +120,62 @@ const AdminDonations = () => {
       });
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
+    }
+  };
+
+  const fetchDonations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('donations')
+        .select(`
+          *,
+          donation_campaigns (
+            title
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setDonations(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar doações:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar doações.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const downloadReceipt = async (donationId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-receipt', {
+        body: { donationId }
+      });
+
+      if (error) throw error;
+
+      const blob = new Blob([data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `comprovante-${donationId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Sucesso",
+        description: "Comprovante baixado com sucesso!",
+      });
+    } catch (error: any) {
+      console.error('Erro ao baixar comprovante:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao baixar comprovante.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -275,7 +358,14 @@ const AdminDonations = () => {
         </div>
       )}
 
-      <Card>
+      <Tabs defaultValue="campaigns" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="campaigns">Campanhas</TabsTrigger>
+          <TabsTrigger value="donations">Relatório de Doações</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="campaigns">
+          <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Campanhas de Doação</CardTitle>
@@ -487,6 +577,81 @@ const AdminDonations = () => {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="donations">
+          <Card>
+            <CardHeader>
+              <CardTitle>Relatório de Doações</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {donations.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma doação registrada ainda.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>E-mail</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead>Campanha</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>ID Transação</TableHead>
+                        <TableHead>Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {donations.map((donation) => (
+                        <TableRow key={donation.id}>
+                          <TableCell>
+                            {new Date(donation.created_at).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </TableCell>
+                          <TableCell>{donation.donor_name}</TableCell>
+                          <TableCell>{donation.donor_email}</TableCell>
+                          <TableCell>{donation.donor_phone}</TableCell>
+                          <TableCell>{donation.donation_campaigns?.title || 'N/A'}</TableCell>
+                          <TableCell>R$ {Number(donation.amount).toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Badge variant={donation.status === 'completed' ? 'default' : 'secondary'}>
+                              {donation.status === 'completed' ? 'Concluída' : 'Pendente'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {donation.stripe_payment_intent_id || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {donation.status === 'completed' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => downloadReceipt(donation.id)}
+                              >
+                                <Download className="h-4 w-4 mr-1" />
+                                Comprovante
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
