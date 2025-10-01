@@ -1,19 +1,18 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, Loader2 } from "lucide-react";
+import { Heart, Loader as Loader2 } from "lucide-react";
 import { loadStripe } from '@stripe/stripe-js';
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-// Definindo a URL da Edge Function APENAS uma vez para facilitar a manutenção
-// Se o seu 'client.ts' exportar a URL base, use-a. Caso contrário, esta é a forma padrão.
-const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`;
+// Definindo a URL da Edge Function usando a URL exportada do client
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/create-payment-intent`;
 
 interface Campaign {
   id: string;
