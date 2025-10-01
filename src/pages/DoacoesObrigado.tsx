@@ -97,15 +97,30 @@ const DoacoesObrigado = () => {
         throw new Error('Erro ao gerar comprovante');
       }
 
+      const contentType = response.headers.get('Content-Type');
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `comprovante-doacao-${donation.id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+
+      // Se retornou HTML, abre em nova janela para impressão
+      if (contentType?.includes('text/html')) {
+        const url = window.URL.createObjectURL(blob);
+        const printWindow = window.open(url, '_blank');
+        if (printWindow) {
+          printWindow.onload = () => {
+            printWindow.print();
+          };
+        }
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      } else {
+        // Se retornou PDF, faz download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `comprovante-doacao-${donation.id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
     } catch (error) {
       console.error('Erro ao baixar comprovante:', error);
     } finally {
