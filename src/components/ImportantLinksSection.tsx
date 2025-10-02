@@ -17,8 +17,9 @@ const ImportantLinksSection = () => {
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  // Distância de rolagem ajustada para o tamanho reduzido do card (240px + 24px de gap)
-  const scrollDistance = 265; 
+  // NOVA DISTÂNCIA: Largura do card (180px) + gap (space-x-6, que é 24px) = 204px.
+  // Usaremos 205 para rolagem suave.
+  const scrollDistance = 205; 
 
   useEffect(() => {
     fetchLinks();
@@ -36,10 +37,7 @@ const ImportantLinksSection = () => {
         console.error("Erro ao carregar links:", error);
         return;
       }
-
-      if (data) {
-        setLinks(data);
-      }
+      setLinks(data || []);
     } catch (error) {
       console.error("Erro ao carregar links:", error);
     } finally {
@@ -125,31 +123,37 @@ const ImportantLinksSection = () => {
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex-shrink-0 w-[240px] snap-center"
+                // LARGURA DO CARD REDUZIDA PARA APROXIMAR DO QUADRADO
+                className="group flex-shrink-0 w-[180px] snap-center" 
               >
+                {/* O h-full em conjunto com o p-3 e espaço y-2 ajuda na proporção */}
                 <Card className="h-full transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-primary/50">
-                  <CardContent className="p-4 flex flex-col items-center text-center space-y-3">
+                  <CardContent className="p-3 flex flex-col items-center text-center space-y-2"> 
+                    
+                    {/* REDUÇÃO DOS ÍCONES/IMAGENS */}
                     {link.icon_url ? (
-                      <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
                         <img
                           src={link.icon_url}
                           alt={link.title}
-                          className="w-10 h-10 object-contain"
+                          className="w-6 h-6 object-contain"
                         />
                       </div>
                     ) : (
-                      <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                        <ExternalLink className="w-7 h-7 text-primary" />
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <ExternalLink className="w-5 h-5 text-primary" />
                       </div>
                     )}
 
-                    <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors">
+                    {/* REDUÇÃO DA FONTE DO TÍTULO */}
+                    <h3 className="font-semibold text-sm leading-snug text-foreground group-hover:text-primary transition-colors"> 
                       {link.title}
                     </h3>
 
-                    <div className="flex items-center text-sm text-muted-foreground group-hover:text-primary transition-colors">
+                    {/* TEXTO DE ACESSO MENOR */}
+                    <div className="flex items-center text-xs text-muted-foreground group-hover:text-primary transition-colors">
                       <span>Acessar</span>
-                      <ExternalLink className="w-4 h-4 ml-1" />
+                      <ExternalLink className="w-3 h-3 ml-1" />
                     </div>
                   </CardContent>
                 </Card>
