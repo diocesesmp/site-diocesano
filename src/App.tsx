@@ -19,6 +19,7 @@ import AdminLogin from "./pages/AdminLogin";
 import Doacoes from "./pages/Doacoes";
 import DoacoesCheckout from "./pages/DoacoesCheckout";
 import DoacoesObrigado from "./pages/DoacoesObrigado";
+import Campanhas from "./pages/Campanhas";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
           <Route path="/diretorio/paroquias/:slug" element={<DiretorioParoquias />} />
           <Route path="/bispo" element={<Bispo />} />
           {/* Páginas de doação */}
+          <Route path="/campanhas" element={<Campanhas />} />
           <Route path="/doacoes/:slug" element={<Doacoes />} />
           <Route path="/doacoes/:slug/checkout" element={<DoacoesCheckout />} />
           <Route path="/doacoes/obrigado" element={<DoacoesObrigado />} />

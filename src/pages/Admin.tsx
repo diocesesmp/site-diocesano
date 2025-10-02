@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Settings, FileText, Calendar, Users, Image, BookOpen, Newspaper, Chrome as Home, CreditCard } from "lucide-react";
+import { LogOut, Settings, FileText, Calendar, Users, Image, BookOpen, Newspaper, Chrome as Home, CreditCard, ExternalLink } from "lucide-react";
 import { Crown, Clock, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,6 +21,7 @@ import AdminCloudinary from "@/components/admin/AdminCloudinary";
 import AdminTimeline from "@/components/admin/AdminTimeline";
 import AdminDonations from "@/components/admin/AdminDonations";
 import AdminStripe from "@/components/admin/AdminStripe";
+import AdminImportantLinks from "@/components/admin/AdminImportantLinks";
 
 const AdminPage = () => {
   const [user, setUser] = useState(null);
@@ -103,7 +104,7 @@ const AdminPage = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="articles" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-12">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-13">
             <TabsTrigger value="articles" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Notícias</span>
@@ -151,6 +152,10 @@ const AdminPage = () => {
             <TabsTrigger value="timeline" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline">Timeline</span>
+            </TabsTrigger>
+            <TabsTrigger value="links" className="flex items-center gap-2">
+              <ExternalLink className="h-4 w-4" />
+              <span className="hidden sm:inline">Links</span>
             </TabsTrigger>
           </TabsList>
 
@@ -201,6 +206,10 @@ const AdminPage = () => {
 
           <TabsContent value="timeline">
             <AdminTimeline />
+          </TabsContent>
+
+          <TabsContent value="links">
+            <AdminImportantLinks />
           </TabsContent>
         </Tabs>
       </main>

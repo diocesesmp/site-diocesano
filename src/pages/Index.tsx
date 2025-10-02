@@ -6,6 +6,7 @@ import BishopCard from "@/components/BishopCard";
 import DirectorySection from "@/components/DirectorySection";
 import GovernmentSection from "@/components/GovernmentSection";
 import TimelineSection from "@/components/TimelineSection";
+import ImportantLinksSection from "@/components/ImportantLinksSection";
 import Footer from "@/components/Footer";
 
 const Index = () => {
@@ -37,6 +38,7 @@ const Index = () => {
         <GovernmentSection />
         <DirectorySection />
         <TimelineSection />
+        <ImportantLinksSection />
       </main>
       <Footer />
     </div>
