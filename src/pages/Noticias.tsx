@@ -9,9 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, User, ArrowLeft, Share2, Facebook, MessageCircle, Mail, Copy, ExternalLink } from "lucide-react";
+import { 
+  Calendar, User, ArrowLeft, Facebook, MessageCircle, Mail, Copy, ExternalLink,
+  Loader2, Frown
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+// Interface para o tipo Article
 interface Article {
   id: string;
   title: string;
@@ -26,21 +30,25 @@ interface Article {
 }
 
 const NoticiasPage = () => {
-  const { slug } = useParams();
+  const { slug } = useParams<{ slug: string }>(); // Tipagem aprimorada
   const [articles, setArticles] = useState<Article[]>([]);
   const [currentArticle, setCurrentArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false); // Novo estado para 404
   const [currentPage, setCurrentPage] = useState(1);
   const articlesPerPage = 9;
   const { toast } = useToast();
 
   useEffect(() => {
+    setLoading(true);
+    setNotFound(false);
+    
     if (slug) {
       fetchArticle();
     } else {
       fetchArticles();
     }
-  }, [slug, currentPage]);
+  }, [slug, currentPage]); // Dependências corrigidas
 
   const fetchArticles = async () => {
     try {
@@ -55,6 +63,7 @@ const NoticiasPage = () => {
       setArticles(data || []);
     } catch (error) {
       console.error('Erro ao carregar notícias:', error);
+      setArticles([]);
     } finally {
       setLoading(false);
     }
@@ -69,28 +78,29 @@ const NoticiasPage = () => {
         .not('published_at', 'is', null)
         .single();
 
-      if (error) throw error;
-      setCurrentArticle(data);
+      if (error || !data) {
+        // Trata erro ou not found (se o .single() não retornar nada)
+        if (error && error.code === 'PGRST116') { // Código comum para "Not Found" no Supabase/PostgREST
+           setNotFound(true);
+        } else if (!data) {
+           setNotFound(true);
+        } else {
+           throw error;
+        }
+        setCurrentArticle(null);
+      } else {
+        setCurrentArticle(data as Article);
+      }
     } catch (error) {
       console.error('Erro ao carregar notícia:', error);
+      setNotFound(true);
+      setCurrentArticle(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleShare = async () => {
-    if (navigator.share && currentArticle) {
-      try {
-        await navigator.share({
-          title: currentArticle.title,
-          text: currentArticle.excerpt,
-          url: window.location.href,
-        });
-      } catch (error) {
-        console.log('Erro ao compartilhar:', error);
-      }
-    }
-  };
+  // Funções de Compartilhamento (Mantidas, mas limpas)
 
   const handleShareFacebook = () => {
     const url = encodeURIComponent(window.location.href);
@@ -100,7 +110,7 @@ const NoticiasPage = () => {
 
   const handleShareWhatsApp = () => {
     const url = encodeURIComponent(window.location.href);
-    const text = encodeURIComponent(`${currentArticle?.title} - ${currentArticle?.excerpt}`);
+    const text = encodeURIComponent(`*${currentArticle?.title}* - ${currentArticle?.excerpt}`);
     window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
   };
 
@@ -122,19 +132,22 @@ const NoticiasPage = () => {
       toast({
         title: "Link copiado!",
         description: "O link foi copiado para a área de transferência.",
+        duration: 3000,
       });
     } catch (error) {
       console.error('Erro ao copiar link:', error);
     }
   };
 
+  // Renderização de Loading
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container mx-auto px-4 py-8">
-          <div className="flex justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <main className="container mx-auto px-4 py-32">
+          <div className="flex flex-col items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="mt-4 text-primary">Carregando...</p>
           </div>
         </main>
         <Footer />
@@ -142,7 +155,30 @@ const NoticiasPage = () => {
     );
   }
 
-  // Página individual da notícia
+  // Renderização de Notícia Não Encontrada (404)
+  if (slug && notFound) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-20 text-center">
+          <Frown className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+          <h1 className="text-4xl font-bold text-destructive mb-2">404 - Notícia Não Encontrada</h1>
+          <p className="text-muted-foreground mb-8">
+            Parece que a notícia com o slug **'{slug}'** não existe ou foi removida.
+          </p>
+          <Link to="/noticias">
+            <Button variant="default">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar para a Lista de Notícias
+            </Button>
+          </Link>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Página individual da notícia (Somente se houver slug E currentArticle)
   if (slug && currentArticle) {
     return (
       <div className="min-h-screen bg-background">
@@ -158,10 +194,10 @@ const NoticiasPage = () => {
               </Link>
             </div>
 
-            <article className="prose prose-lg max-w-none">
+            <article className="prose prose-lg max-w-none dark:prose-invert">
               <header className="mb-8">
                 <h1 className="text-4xl font-bold text-primary mb-4">{currentArticle.title}</h1>
-                
+                  
                 <div className="flex flex-wrap items-center gap-4 text-muted-foreground mb-6">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4" />
@@ -177,11 +213,11 @@ const NoticiasPage = () => {
 
                 {/* Botões de Compartilhamento */}
                 <div className="flex flex-wrap gap-2 mb-6">
-                  <Button variant="outline" size="sm" onClick={handleShareFacebook}>
+                  <Button variant="outline" size="sm" onClick={handleShareFacebook} className="bg-[#1877F2] text-white hover:bg-[#1877F2]/90 hover:text-white">
                     <Facebook className="h-4 w-4 mr-2" />
                     Facebook
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleShareWhatsApp}>
+                  <Button variant="outline" size="sm" onClick={handleShareWhatsApp} className="bg-[#25D366] text-white hover:bg-[#25D366]/90 hover:text-white">
                     <MessageCircle className="h-4 w-4 mr-2" />
                     WhatsApp
                   </Button>
@@ -193,7 +229,7 @@ const NoticiasPage = () => {
                     <Mail className="h-4 w-4 mr-2" />
                     E-mail
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleCopyLink}>
+                  <Button variant="secondary" size="sm" onClick={handleCopyLink}>
                     <Copy className="h-4 w-4 mr-2" />
                     Copiar Link
                   </Button>
@@ -211,7 +247,7 @@ const NoticiasPage = () => {
                   <img 
                     src={currentArticle.featured_image_url} 
                     alt={currentArticle.title}
-                    className="w-full h-64 object-cover rounded-lg mb-6"
+                    className="w-full max-h-96 object-cover rounded-lg mb-6"
                   />
                 )}
               </header>
@@ -223,10 +259,12 @@ const NoticiasPage = () => {
               
               {/* Galeria de Imagens */}
               {currentArticle.gallery_images && currentArticle.gallery_images.length > 0 && (
-                <NewsGallery 
-                  images={currentArticle.gallery_images} 
-                  title={currentArticle.title} 
-                />
+                <div className="mt-10">
+                    <NewsGallery 
+                        images={currentArticle.gallery_images} 
+                        title={currentArticle.title} 
+                    />
+                </div>
               )}
             </article>
           </div>
@@ -263,7 +301,7 @@ const NoticiasPage = () => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {articles.map((article) => (
-                <Card key={article.id} className="hover:shadow-lg transition-shadow">
+                <Card key={article.id} className="hover:shadow-xl transition-shadow duration-300">
                   <CardHeader className="p-0">
                     {article.featured_image_url && (
                       <img 
@@ -274,48 +312,60 @@ const NoticiasPage = () => {
                     )}
                   </CardHeader>
                   <CardContent className="p-6">
+                    {/* Tags acima do título */}
+                    {article.tags && article.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {article.tags.slice(0, 3).map((tag, index) => (
+                            <Badge key={index} variant="default" className="text-xs bg-secondary hover:bg-secondary/80">{tag}</Badge>
+                          ))}
+                        </div>
+                    )}
+                    
                     <CardTitle className="mb-2 line-clamp-2">
                       <Link 
-                        to={`/noticias/${article.slug}`}
-                        className="hover:text-primary transition-colors"
+                        to={`/noticias/${article.slug}`} // O LINK ESTÁ CORRETO AQUI!
+                        className="hover:text-primary transition-colors text-lg"
                       >
                         {article.title}
                       </Link>
                     </CardTitle>
                     
-                    <p className="text-muted-foreground mb-4 line-clamp-3">
+                    <p className="text-muted-foreground mb-4 line-clamp-3 text-sm">
                       {article.excerpt}
                     </p>
 
-                    <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
-                      <span>{article.author}</span>
-                      <span>
-                        {format(new Date(article.published_at), "dd/MM/yyyy", { locale: ptBR })}
-                      </span>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground mt-4 border-t pt-4">
+                        <div className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            <span className="text-xs">{article.author}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            <span className="text-xs">
+                                {format(new Date(article.published_at), "dd/MM/yyyy", { locale: ptBR })}
+                            </span>
+                        </div>
                     </div>
 
-                    {article.tags && article.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {article.tags.slice(0, 3).map((tag, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">{tag}</Badge>
-                        ))}
-                        {article.tags.length > 3 && (
-                          <Badge variant="outline" className="text-xs">+{article.tags.length - 3}</Badge>
-                        )}
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               ))}
             </div>
 
-            <div className="flex justify-center gap-2">
+            {/* Componente de Paginação */}
+            <div className="flex justify-center gap-2 mt-8">
               <Button 
                 variant="outline" 
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
               >
                 Anterior
+              </Button>
+              <Button 
+                variant="outline"
+                disabled
+              >
+                Página {currentPage}
               </Button>
               <Button 
                 variant="outline" 
