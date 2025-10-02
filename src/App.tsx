@@ -20,6 +20,8 @@ import Doacoes from "./pages/Doacoes";
 import DoacoesCheckout from "./pages/DoacoesCheckout";
 import DoacoesObrigado from "./pages/DoacoesObrigado";
 import Campanhas from "./pages/Campanhas";
+import PoliticaPrivacidade from "./pages/PoliticaPrivacidade";
+import TermosUso from "./pages/TermosUso";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +58,9 @@ const App = () => (
           <Route path="/institucional/:page" element={<Institucional />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/login" element={<AdminLogin />} />
+          {/* Páginas legais */}
+          <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
+          <Route path="/termos" element={<TermosUso />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
