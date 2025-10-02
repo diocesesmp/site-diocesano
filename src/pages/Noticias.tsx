@@ -315,54 +315,51 @@ const NoticiasPage = () => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {articles.map((article) => (
-                <Card key={article.id} className="hover:shadow-xl transition-shadow duration-300">
-                  <CardHeader className="p-0">
-                    {article.featured_image_url && (
-                      <img 
-                        src={article.featured_image_url} 
-                        alt={article.title}
-                        className="w-full h-48 object-cover rounded-t-lg"
-                      />
-                    )}
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    {/* Tags acima do título */}
-                    {article.tags && article.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {article.tags.slice(0, 3).map((tag, index) => (
-                            <Badge key={index} variant="default" className="text-xs bg-secondary hover:bg-secondary/80">{tag}</Badge>
-                          ))}
-                        </div>
-                    )}
-                    
-                    <CardTitle className="mb-2 line-clamp-2">
-                      <Link 
-                        to={`/noticias/${article.slug}`} 
-                        className="hover:text-primary transition-colors text-lg"
-                      >
+                <Link key={article.id} to={`/noticias/${article.slug}`} className="block">
+                  <Card className="hover:shadow-xl transition-shadow duration-300 cursor-pointer h-full">
+                    <CardHeader className="p-0">
+                      {article.featured_image_url && (
+                        <img 
+                          src={article.featured_image_url} 
+                          alt={article.title}
+                          className="w-full h-48 object-cover rounded-t-lg"
+                        />
+                      )}
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      {/* Tags acima do título */}
+                      {article.tags && article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {article.tags.slice(0, 3).map((tag, index) => (
+                              <Badge key={index} variant="default" className="text-xs bg-secondary hover:bg-secondary/80">{tag}</Badge>
+                            ))}
+                          </div>
+                      )}
+                      
+                      <CardTitle className="mb-2 line-clamp-2 hover:text-primary transition-colors text-lg">
                         {article.title}
-                      </Link>
-                    </CardTitle>
-                    
-                    <p className="text-muted-foreground mb-4 line-clamp-3 text-sm">
-                      {article.excerpt}
-                    </p>
+                      </CardTitle>
+                      
+                      <p className="text-muted-foreground mb-4 line-clamp-3 text-sm">
+                        {article.excerpt}
+                      </p>
 
-                    <div className="flex items-center justify-between text-sm text-muted-foreground mt-4 border-t pt-4">
-                        <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            <span className="text-xs">{article.author}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            <span className="text-xs">
-                                {format(new Date(article.published_at), "dd/MM/yyyy", { locale: ptBR })}
-                            </span>
-                        </div>
-                    </div>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground mt-4 border-t pt-4">
+                          <div className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              <span className="text-xs">{article.author}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              <span className="text-xs">
+                                  {format(new Date(article.published_at), "dd/MM/yyyy", { locale: ptBR })}
+                              </span>
+                          </div>
+                      </div>
 
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
 
