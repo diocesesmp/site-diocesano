@@ -23,6 +23,7 @@ const Header = () => {
     { name: "Notícias", href: "/noticias" },
     { name: "Eventos", href: "/eventos" },
     { name: "Bispo", href: "/bispo" },
+    { name: "Campanhas", href: "/campanhas" },
     {
       name: "Diretório",
       href: "#",

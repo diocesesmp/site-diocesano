@@ -16,6 +16,7 @@ interface SiteSettings {
   site_title: string;
   meta_description?: string;
   logo_url?: string;
+  hero_background_url?: string;
   email_contact?: string;
   facebook_url?: string;
   instagram_url?: string;
@@ -35,6 +36,7 @@ const AdminSettings = () => {
     site_title: '',
     meta_description: '',
     logo_url: '',
+    hero_background_url: '',
     email_contact: '',
     facebook_url: '',
     instagram_url: '',
@@ -69,6 +71,7 @@ const AdminSettings = () => {
           site_title: data[0].site_title,
           meta_description: data[0].meta_description || '',
           logo_url: data[0].logo_url || '',
+          hero_background_url: data[0].hero_background_url || '',
           email_contact: data[0].email_contact || '',
           facebook_url: data[0].facebook_url || '',
           instagram_url: data[0].instagram_url || '',
@@ -101,6 +104,7 @@ const AdminSettings = () => {
         site_title: formData.site_title,
         meta_description: formData.meta_description || null,
         logo_url: formData.logo_url || null,
+        hero_background_url: formData.hero_background_url || null,
         email_contact: formData.email_contact || null,
         facebook_url: formData.facebook_url || null,
         instagram_url: formData.instagram_url || null,
@@ -205,13 +209,30 @@ const AdminSettings = () => {
             </div>
 
             <div className="mt-4">
-              <Label htmlFor="logo_url">Logo do Site</Label>
+              <Label htmlFor="logo_url">Logo do Site (Brasão)</Label>
               <ImageUpload
                 onUpload={(urls) => setFormData({...formData, logo_url: urls[0]})}
                 multiple={false}
                 folder="diocese/logo"
                 className="mt-2"
               />
+              {formData.logo_url && (
+                <img src={formData.logo_url} alt="Logo atual" className="mt-2 h-20 w-20 object-contain" />
+              )}
+            </div>
+
+            <div className="mt-4">
+              <Label htmlFor="hero_background_url">Imagem de Fundo do Hero</Label>
+              <p className="text-xs text-muted-foreground mb-2">Imagem de fundo da seção principal da página inicial</p>
+              <ImageUpload
+                onUpload={(urls) => setFormData({...formData, hero_background_url: urls[0]})}
+                multiple={false}
+                folder="diocese/hero"
+                className="mt-2"
+              />
+              {formData.hero_background_url && (
+                <img src={formData.hero_background_url} alt="Fundo hero atual" className="mt-2 h-32 w-full object-cover rounded" />
+              )}
             </div>
           </div>
 

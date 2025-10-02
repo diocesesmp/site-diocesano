@@ -11,6 +11,7 @@ const Hero = () => {
     years: 45
   });
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [heroBackgroundUrl, setHeroBackgroundUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -20,7 +21,7 @@ const Hero = () => {
     try {
       const { data, error } = await supabase
         .from('site_settings')
-        .select('parishes_count, priests_count, faithful_count, years_count, logo_url')
+        .select('parishes_count, priests_count, faithful_count, years_count, logo_url, hero_background_url')
         .order('created_at', { ascending: false })
         .limit(1);
 
@@ -38,6 +39,7 @@ const Hero = () => {
           years: data[0].years_count || 45
         });
         setLogoUrl(data[0].logo_url || null);
+        setHeroBackgroundUrl(data[0].hero_background_url || null);
       } else {
         console.log("Nenhum dado encontrado no banco");
       }
@@ -49,9 +51,9 @@ const Hero = () => {
   return (
     <section className="relative min-h-[80vh] flex items-center justify-center bg-primary-dark overflow-hidden">
       {/* Background Image with Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${heroImage})` }}
+        style={{ backgroundImage: `url(${heroBackgroundUrl || heroImage})` }}
       >
         <div className="absolute inset-0 bg-hero-gradient opacity-80"></div>
       </div>
