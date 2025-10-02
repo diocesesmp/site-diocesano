@@ -87,55 +87,50 @@ const NewsSection = () => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
               {articles.map((article) => (
-                <Card key={article.id} className="shadow-soft hover:shadow-medium transition-smooth group cursor-pointer">
-                  <CardHeader className="p-0">
-                    <div className="relative overflow-hidden rounded-t-lg">
-                      {article.featured_image_url ? (
-                        <img
-                          src={article.featured_image_url}
-                          alt={article.title}
-                          className="w-full h-48 object-cover group-hover:scale-105 transition-smooth"
-                        />
-                      ) : (
-                        <div className="w-full h-48 bg-muted flex items-center justify-center">
-                          <User className="h-12 w-12 text-muted-foreground" />
-                        </div>
-                      )}
-                      {article.tags && article.tags.length > 0 && (
-                        <div className="absolute top-4 left-4">
-                          <span className="bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-medium">
-                            {article.tags[0]}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <h3 className="text-xl font-semibold text-primary mb-3 group-hover:text-accent transition-smooth line-clamp-2">
-                      {article.title}
-                    </h3>
-                    <p className="text-muted-foreground mb-4 line-clamp-3">
-                      {article.excerpt?.replace(/<[^>]*>/g, '') || ''}
-                    </p>
-                    <div className="flex items-center text-sm text-muted-foreground space-x-4">
-                      <div className="flex items-center">
-                        <User className="h-4 w-4 mr-1" />
-                        {article.author}
+                <Link key={article.id} to={`/noticias/${article.slug}`} className="block">
+                  <Card className="shadow-soft hover:shadow-medium transition-smooth group cursor-pointer h-full">
+                    <CardHeader className="p-0">
+                      <div className="relative overflow-hidden rounded-t-lg">
+                        {article.featured_image_url ? (
+                          <img
+                            src={article.featured_image_url}
+                            alt={article.title}
+                            className="w-full h-48 object-cover group-hover:scale-105 transition-smooth"
+                          />
+                        ) : (
+                          <div className="w-full h-48 bg-muted flex items-center justify-center">
+                            <User className="h-12 w-12 text-muted-foreground" />
+                          </div>
+                        )}
+                        {article.tags && article.tags.length > 0 && (
+                          <div className="absolute top-4 left-4">
+                            <span className="bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-medium">
+                              {article.tags[0]}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {format(new Date(article.published_at), "dd/MM/yyyy", { locale: ptBR })}
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <h3 className="text-xl font-semibold text-primary mb-3 group-hover:text-accent transition-smooth line-clamp-2">
+                        {article.title}
+                      </h3>
+                      <p className="text-muted-foreground mb-4 line-clamp-3">
+                        {article.excerpt?.replace(/<[^>]*>/g, '') || ''}
+                      </p>
+                      <div className="flex items-center text-sm text-muted-foreground space-x-4">
+                        <div className="flex items-center">
+                          <User className="h-4 w-4 mr-1" />
+                          {article.author}
+                        </div>
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-1" />
+                          {format(new Date(article.published_at), "dd/MM/yyyy", { locale: ptBR })}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="px-6 pb-6">
-                    <Button variant="ghost" className="w-full" asChild>
-                      <Link to={`/noticias/${article.slug}`}>
-                        Ler Mais
-                      </Link>
-                    </Button>
-                  </CardFooter>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
 
