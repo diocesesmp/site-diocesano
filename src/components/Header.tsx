@@ -80,9 +80,9 @@ const Header = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-8">
+          <nav className="hidden lg:flex items-center space-x-4">
             {/* Search Field - Desktop */}
-            <GlobalSearch className="w-64" placeholder="Buscar no site..." />
+            <GlobalSearch placeholder="Buscar no site..." />
             
             {navigationItems.map((item) => (
               <div key={item.name} className="relative">
@@ -128,26 +128,23 @@ const Header = () => {
           </nav>
 
           {/* Mobile menu button */}
-          <button
-            className="lg:hidden"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ? (
-              <X className="h-6 w-6 text-primary" />
-            ) : (
-              <Menu className="h-6 w-6 text-primary" />
-            )}
-          </button>
+          <div className="lg:hidden flex items-center gap-2">
+            <GlobalSearch placeholder="Buscar..." />
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              {isMenuOpen ? (
+                <X className="h-6 w-6 text-primary" />
+              ) : (
+                <Menu className="h-6 w-6 text-primary" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <nav className="lg:hidden pb-4">
-            {/* Search Field - Mobile */}
-            <div className="mb-4">
-              <GlobalSearch className="w-full" placeholder="Buscar no site..." />
-            </div>
-            
+          <nav className="lg:hidden pb-4">            
             <div className="space-y-1">
               {navigationItems.map((item) => (
                 <div key={item.name}>
