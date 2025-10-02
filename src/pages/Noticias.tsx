@@ -30,11 +30,11 @@ interface Article {
 }
 
 const NoticiasPage = () => {
-  const { slug } = useParams<{ slug: string }>(); // Tipagem aprimorada
+  const { slug } = useParams<{ slug: string }>(); 
   const [articles, setArticles] = useState<Article[]>([]);
   const [currentArticle, setCurrentArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false); // Novo estado para 404
+  const [notFound, setNotFound] = useState(false); 
   const [currentPage, setCurrentPage] = useState(1);
   const articlesPerPage = 9;
   const { toast } = useToast();
@@ -48,7 +48,7 @@ const NoticiasPage = () => {
     } else {
       fetchArticles();
     }
-  }, [slug, currentPage]); // Dependências corrigidas
+  }, [slug, currentPage]);
 
   const fetchArticles = async () => {
     try {
@@ -79,8 +79,7 @@ const NoticiasPage = () => {
         .single();
 
       if (error || !data) {
-        // Trata erro ou not found (se o .single() não retornar nada)
-        if (error && error.code === 'PGRST116') { // Código comum para "Not Found" no Supabase/PostgREST
+        if (error && error.code === 'PGRST116') {
            setNotFound(true);
         } else if (!data) {
            setNotFound(true);
@@ -99,8 +98,6 @@ const NoticiasPage = () => {
       setLoading(false);
     }
   };
-
-  // Funções de Compartilhamento (Mantidas, mas limpas)
 
   const handleShareFacebook = () => {
     const url = encodeURIComponent(window.location.href);
@@ -211,29 +208,46 @@ const NoticiasPage = () => {
                   </div>
                 </div>
 
-                {/* Botões de Compartilhamento */}
-                <div className="flex flex-wrap gap-2 mb-6">
-                  <Button variant="outline" size="sm" onClick={handleShareFacebook} className="bg-[#1877F2] text-white hover:bg-[#1877F2]/90 hover:text-white">
-                    <Facebook className="h-4 w-4 mr-2" />
-                    Facebook
+                {/* Botões de Compartilhamento (COMPACTOS) */}
+                <div className="flex items-center flex-wrap gap-2 mb-6">
+                  <span className="text-sm font-medium text-muted-foreground mr-1">Compartilhe:</span>
+                  
+                  {/* Facebook (Apenas Ícone) */}
+                  <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={handleShareFacebook} 
+                      className="bg-[#1877F2] text-white hover:bg-[#1877F2]/90 hover:text-white"
+                  >
+                    <Facebook className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleShareWhatsApp} className="bg-[#25D366] text-white hover:bg-[#25D366]/90 hover:text-white">
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    WhatsApp
+                  
+                  {/* WhatsApp (Apenas Ícone) */}
+                  <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={handleShareWhatsApp} 
+                      className="bg-[#25D366] text-white hover:bg-[#25D366]/90 hover:text-white"
+                  >
+                    <MessageCircle className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleShareTwitter}>
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    X (Twitter)
+                  
+                  {/* X/Twitter (Apenas Ícone) */}
+                  <Button variant="outline" size="icon" onClick={handleShareTwitter}>
+                    <ExternalLink className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleShareEmail}>
-                    <Mail className="h-4 w-4 mr-2" />
-                    E-mail
+                  
+                  {/* E-mail (Apenas Ícone) */}
+                  <Button variant="outline" size="icon" onClick={handleShareEmail}>
+                    <Mail className="h-4 w-4" />
                   </Button>
-                  <Button variant="secondary" size="sm" onClick={handleCopyLink}>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copiar Link
+                  
+                  {/* Copiar Link (Apenas Ícone) */}
+                  <Button variant="secondary" size="icon" onClick={handleCopyLink}>
+                    <Copy className="h-4 w-4" />
                   </Button>
                 </div>
+                {/* FIM DOS BOTÕES COMPACTOS */}
 
                 {currentArticle.tags && currentArticle.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-6">
@@ -323,7 +337,7 @@ const NoticiasPage = () => {
                     
                     <CardTitle className="mb-2 line-clamp-2">
                       <Link 
-                        to={`/noticias/${article.slug}`} // O LINK ESTÁ CORRETO AQUI!
+                        to={`/noticias/${article.slug}`} 
                         className="hover:text-primary transition-colors text-lg"
                       >
                         {article.title}
