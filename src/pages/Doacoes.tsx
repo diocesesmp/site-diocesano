@@ -171,21 +171,7 @@ const Doacoes = () => {
         throw new Error('Chave pública do Stripe não configurada');
       }
 
-      // 2. Inserir doação no Supabase (status 'pending')
-      const { data: donation, error: donationError } = await supabase
-        .from('donations')
-        .insert({
-          campaign_id: campaign.id,
-          donor_name: formData.name,
-          donor_email: formData.email,
-          donor_phone: formData.phone,
-          amount: amount,
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (donationError) throw donationError;
+      // 2. (Removido) Inserção da doação é feita na Edge Function com service role para evitar RLS para anônimos.
 
       // 3. Carregar Stripe
       const stripe = await loadStripe(publishableKey);
@@ -202,10 +188,12 @@ const Doacoes = () => {
           'apikey': SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({
-          amount: amount,
-          donationId: donation.id,
+          amount,
+          campaignId: campaign.id,
           campaignTitle: campaign.title,
           donorEmail: formData.email,
+          donorName: formData.name,
+          donorPhone: formData.phone,
           isTestMode
         })
       });
@@ -216,13 +204,13 @@ const Doacoes = () => {
         throw new Error(errorBody.error || errorBody.message || 'Erro ao criar pagamento na função.');
       }
 
-      const { clientSecret } = await response.json();
+      const { clientSecret, donationId } = await response.json();
 
       // 5. Redirecionar para a página de Checkout do Stripe
       navigate(`/doacoes/${slug}/checkout`, {
         state: {
           clientSecret,
-          donationId: donation.id,
+          donationId,
           amount,
           campaignTitle: campaign.title,
           publishableKey
