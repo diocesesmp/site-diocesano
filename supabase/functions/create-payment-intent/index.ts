@@ -15,7 +15,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { amount, donationId, campaignTitle, donorEmail, isTestMode } = await req.json();
+    const { amount, donationId, campaignId, campaignTitle, donorEmail, donorName, donorPhone, isTestMode } = await req.json();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -40,6 +40,30 @@ Deno.serve(async (req: Request) => {
       throw new Error("Stripe secret key not configured");
     }
 
+    // Ensure donation exists (create anonymously using service role if not provided)
+    let donation_id = donationId;
+    if (!donation_id) {
+      if (!campaignId || !donorEmail || !donorName) {
+        throw new Error("Missing required fields to create donation (campaignId, donorName, donorEmail)");
+      }
+      const { data: donation, error: donationError } = await supabase
+        .from("donations")
+        .insert({
+          campaign_id: campaignId,
+          donor_name: donorName,
+          donor_email: donorEmail,
+          donor_phone: donorPhone || null,
+          amount: amount,
+          status: "pending",
+        })
+        .select("id")
+        .single();
+      if (donationError || !donation) {
+        throw new Error(donationError?.message || "Failed to create donation");
+      }
+      donation_id = donation.id;
+    }
+
     const amountInCents = Math.round(amount * 100);
 
     const response = await fetch("https://api.stripe.com/v1/payment_intents", {
@@ -52,8 +76,9 @@ Deno.serve(async (req: Request) => {
         amount: amountInCents.toString(),
         currency: "brl",
         "automatic_payment_methods[enabled]": "true",
-        "metadata[donation_id]": donationId,
-        "metadata[campaign_title]": campaignTitle,
+        "metadata[donation_id]": donation_id,
+        "metadata[campaign_id]": campaignId || "",
+        "metadata[campaign_title]": campaignTitle || "",
         receipt_email: donorEmail,
       }),
     });
@@ -65,8 +90,14 @@ Deno.serve(async (req: Request) => {
 
     const paymentIntent = await response.json();
 
+    // Update donation with payment intent id and mark as processing
+    await supabase
+      .from("donations")
+      .update({ stripe_payment_intent_id: paymentIntent.id, status: "processing" })
+      .eq("id", donation_id);
+
     return new Response(
-      JSON.stringify({ clientSecret: paymentIntent.client_secret }),
+      JSON.stringify({ clientSecret: paymentIntent.client_secret, donationId: donation_id }),
       {
         headers: {
           ...corsHeaders,
