@@ -45,24 +45,48 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log("Webhook event received:", event.type);
+    console.log("Event data:", JSON.stringify(event.data, null, 2));
 
     switch (event.type) {
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object;
-        const donationId = paymentIntent.metadata.donation_id;
+        const donationId = paymentIntent.metadata?.donation_id;
+
+        console.log("Payment Intent ID:", paymentIntent.id);
+        console.log("Donation ID from metadata:", donationId);
+        console.log("Latest charge:", paymentIntent.latest_charge);
 
         if (donationId) {
-          await supabase
-            .from("donations")
-            .update({
-              status: "completed",
-              stripe_payment_intent_id: paymentIntent.id,
-              stripe_charge_id: paymentIntent.latest_charge,
-              receipt_url: paymentIntent.charges?.data[0]?.receipt_url || null,
-            })
-            .eq("id", donationId);
+          const updateData: any = {
+            status: "completed",
+            stripe_payment_intent_id: paymentIntent.id,
+          };
 
-          console.log("Donation marked as completed:", donationId);
+          if (paymentIntent.latest_charge) {
+            updateData.stripe_charge_id = paymentIntent.latest_charge;
+          }
+
+          // Buscar receipt_url do charge
+          if (paymentIntent.charges?.data && paymentIntent.charges.data.length > 0) {
+            const charge = paymentIntent.charges.data[0];
+            if (charge.receipt_url) {
+              updateData.receipt_url = charge.receipt_url;
+            }
+          }
+
+          const { data, error } = await supabase
+            .from("donations")
+            .update(updateData)
+            .eq("id", donationId)
+            .select();
+
+          if (error) {
+            console.error("Error updating donation:", error);
+          } else {
+            console.log("Donation marked as completed:", donationId, data);
+          }
+        } else {
+          console.error("No donation_id found in payment intent metadata");
         }
         break;
       }
