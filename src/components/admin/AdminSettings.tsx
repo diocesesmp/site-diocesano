@@ -65,21 +65,22 @@ const AdminSettings = () => {
       }
 
       if (data && data.length > 0) {
-        setSettings(data[0]);
+        const row: any = data[0] as any;
+        setSettings(row);
         setFormData({
-          site_name: data[0].site_name,
-          site_title: data[0].site_title,
-          meta_description: data[0].meta_description || '',
-          logo_url: data[0].logo_url || '',
-          hero_background_url: data[0].hero_background_url || '',
-          email_contact: data[0].email_contact || '',
-          facebook_url: data[0].facebook_url || '',
-          instagram_url: data[0].instagram_url || '',
-          youtube_url: data[0].youtube_url || '',
-          parishes_count: data[0].parishes_count || 25,
-          priests_count: data[0].priests_count || 50,
-          faithful_count: data[0].faithful_count || '1M+',
-          years_count: data[0].years_count || 45
+          site_name: row.site_name,
+          site_title: row.site_title,
+          meta_description: row.meta_description || '',
+          logo_url: row.logo_url || '',
+          hero_background_url: row.hero_background_url || '',
+          email_contact: row.email_contact || '',
+          facebook_url: row.facebook_url || '',
+          instagram_url: row.instagram_url || '',
+          youtube_url: row.youtube_url || '',
+          parishes_count: row.parishes_count || 25,
+          priests_count: row.priests_count || 50,
+          faithful_count: row.faithful_count || '1M+',
+          years_count: row.years_count || 45
         });
       }
     } catch (error) {
