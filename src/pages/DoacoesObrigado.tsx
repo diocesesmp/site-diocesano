@@ -36,44 +36,31 @@ const DoacoesObrigado = () => {
       return;
     }
 
-    const checkPaymentStatus = async () => {
+    const loadDonation = async () => {
       try {
         const paymentIntent = searchParams.get('payment_intent');
-
-        if (paymentIntent) {
-          await supabase
-            .from('donations')
-            .update({
-              status: 'completed',
-              stripe_payment_intent_id: paymentIntent
-            })
-            .eq('id', donationId);
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/donation-status`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+          },
+          body: JSON.stringify({ donationId, paymentIntentId: paymentIntent || undefined })
+        });
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || 'Falha ao carregar status da doação');
         }
-
-        const { data, error } = await supabase
-          .from('donations')
-          .select(`
-            *,
-            donation_campaigns (
-              title,
-              image_url
-            )
-          `)
-          .eq('id', donationId)
-          .single();
-
-        if (error) throw error;
-
+        const data = await response.json();
         setDonation(data);
       } catch (error) {
         console.error('Erro ao carregar doação:', error);
-        navigate('/');
       } finally {
         setLoading(false);
       }
     };
 
-    checkPaymentStatus();
+    loadDonation();
   }, [donationId, searchParams, navigate]);
 
   const generatePDFReceipt = async () => {
