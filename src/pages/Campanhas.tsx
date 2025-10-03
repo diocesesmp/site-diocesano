@@ -42,7 +42,16 @@ const Campanhas = () => {
       }
 
       if (data) {
-        setCampaigns(data);
+        setCampaigns(
+          data.map((d: any) => ({
+            ...d,
+            default_amounts: Array.isArray(d.default_amounts)
+              ? (d.default_amounts as number[])
+              : (typeof d.default_amounts === 'string'
+                  ? (JSON.parse(d.default_amounts) as number[])
+                  : []),
+          }))
+        );
       }
     } catch (error) {
       console.error("Erro ao carregar campanhas:", error);
