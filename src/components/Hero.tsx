@@ -30,16 +30,17 @@ const Hero = () => {
         return;
       }
 
-      if (data && data.length > 0) {
-        console.log("Configurações carregadas do banco:", data[0]);
+      if (data && (data as any[]).length > 0) {
+        const row: any = (data as any[])[0];
+        console.log("Configurações carregadas do banco:", row);
         setStats({
-          parishes: data[0].parishes_count || 25,
-          priests: data[0].priests_count || 50,
-          faithful: data[0].faithful_count || "1M+",
-          years: data[0].years_count || 45
+          parishes: row.parishes_count || 25,
+          priests: row.priests_count || 50,
+          faithful: row.faithful_count || "1M+",
+          years: row.years_count || 45
         });
-        setLogoUrl(data[0].logo_url || null);
-        setHeroBackgroundUrl(data[0].hero_background_url || null);
+        setLogoUrl(row.logo_url || null);
+        setHeroBackgroundUrl(row.hero_background_url || null);
       } else {
         console.log("Nenhum dado encontrado no banco");
       }
