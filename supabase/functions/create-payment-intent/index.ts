@@ -79,7 +79,11 @@ Deno.serve(async (req: Request) => {
         "metadata[donation_id]": donation_id,
         "metadata[campaign_id]": campaignId || "",
         "metadata[campaign_title]": campaignTitle || "",
+        "metadata[donor_name]": donorName,
+        "metadata[donor_email]": donorEmail,
+        "metadata[donor_phone]": donorPhone || "",
         receipt_email: donorEmail,
+        description: `Doação para ${campaignTitle} - ${donorName}`,
       }),
     });
 
