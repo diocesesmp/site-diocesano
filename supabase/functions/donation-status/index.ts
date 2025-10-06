@@ -2,23 +2,22 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 200,
-      headers: corsHeaders,
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { donationId, paymentIntentId } = await req.json();
 
     if (!donationId) {
-      throw new Error("Donation ID is required");
+      return new Response(JSON.stringify({ error: "donationId é obrigatório" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     const supabase = createClient(
@@ -26,100 +25,85 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Se temos um payment intent ID, tenta sincronizar com o Stripe primeiro
-    if (paymentIntentId) {
-      const { data: stripeSettings } = await supabase
-        .from("stripe_settings")
-        .select("*")
-        .limit(1)
-        .single();
+    // Buscar configurações do Stripe
+    const { data: stripeSettings, error: settingsError } = await supabase
+      .from("stripe_settings")
+      .select("*")
+      .limit(1)
+      .single();
 
-      if (stripeSettings) {
-        const stripeSecretKey = stripeSettings.stripe_environment === 'test'
-          ? stripeSettings.stripe_test_secret_key
-          : stripeSettings.stripe_live_secret_key;
+    if (settingsError || !stripeSettings?.secret_key) {
+      console.error("Stripe settings not found or missing secret key");
+    }
 
-        if (stripeSecretKey) {
-          try {
-            // Buscar status do pagamento no Stripe
-            const response = await fetch(`https://api.stripe.com/v1/payment_intents/${paymentIntentId}`, {
-              headers: {
-                "Authorization": `Bearer ${stripeSecretKey}`,
-              },
-            });
+    // Buscar doação atual
+    const { data: donation, error: donationError } = await supabase
+      .from("donations")
+      .select(
+        `*, donation_campaigns(title, image_url)`
+      )
+      .eq("id", donationId)
+      .maybeSingle();
 
-            if (response.ok) {
-              const paymentIntent = await response.json();
-              
-              console.log("Payment Intent from Stripe:", paymentIntent.status);
+    if (donationError) {
+      throw donationError;
+    }
 
-              // Atualizar doação com base no status do Stripe
-              if (paymentIntent.status === "succeeded") {
-                const updateData: any = {
-                  status: "completed",
-                  stripe_payment_intent_id: paymentIntent.id,
-                };
+    if (!donation) {
+      return new Response(JSON.stringify({ error: "Doação não encontrada" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
 
-                if (paymentIntent.latest_charge) {
-                  updateData.stripe_charge_id = paymentIntent.latest_charge;
-                }
+    // Se recebemos paymentIntentId, validar no Stripe e atualizar status como fallback
+    if (paymentIntentId && stripeSettings?.secret_key) {
+      try {
+        const stripeRes = await fetch(`https://api.stripe.com/v1/payment_intents/${paymentIntentId}`, {
+          headers: {
+            Authorization: `Bearer ${stripeSettings.secret_key}`,
+          },
+        });
+        const pi = await stripeRes.json();
 
-                if (paymentIntent.charges?.data?.[0]?.receipt_url) {
-                  updateData.receipt_url = paymentIntent.charges.data[0].receipt_url;
-                }
-
-                await supabase
-                  .from("donations")
-                  .update(updateData)
-                  .eq("id", donationId);
-
-                console.log("Donation updated to completed");
-              }
-            }
-          } catch (error) {
-            console.error("Error syncing with Stripe:", error);
-          }
+        if (pi?.status === "succeeded") {
+          await supabase
+            .from("donations")
+            .update({
+              status: "completed",
+              stripe_payment_intent_id: pi.id,
+              stripe_charge_id: pi.latest_charge ?? null,
+              receipt_url: pi.charges?.data?.[0]?.receipt_url ?? null,
+            })
+            .eq("id", donationId);
         }
+      } catch (err) {
+        console.error("Erro ao verificar PaymentIntent no Stripe:", err);
       }
     }
 
     // Buscar doação atualizada
-    const { data: donation, error } = await supabase
+    const { data: donationFinal, error: finalError } = await supabase
       .from("donations")
-      .select(`
-        *,
-        donation_campaigns (
-          title,
-          image_url
-        )
-      `)
+      .select(
+        `*, donation_campaigns(title, image_url)`
+      )
       .eq("id", donationId)
       .single();
 
-    if (error || !donation) {
-      throw new Error("Donation not found");
+    if (finalError) {
+      throw finalError;
     }
 
-    return new Response(
-      JSON.stringify(donation),
-      {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    return new Response(JSON.stringify(donationFinal), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   } catch (error: any) {
-    console.error("Error fetching donation status:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 400,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    console.error("Erro na função donation-status:", error);
+    return new Response(JSON.stringify({ error: error.message || "Erro interno" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 });

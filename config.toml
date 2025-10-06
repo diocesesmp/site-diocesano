@@ -8,6 +8,3 @@ verify_jwt = false
 
 [functions.generate-receipt]
 verify_jwt = false
-
-[functions.donation-status]
-verify_jwt = false

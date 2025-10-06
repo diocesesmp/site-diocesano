@@ -1,0 +1,122 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+};
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 200,
+      headers: corsHeaders,
+    });
+  }
+
+  try {
+    const body = await req.json();
+    console.log("Webhook recebido:", body);
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Buscar configurações do Mercado Pago
+    const { data: mpSettings, error: settingsError } = await supabase
+      .from("mercadopago_settings")
+      .select("*")
+      .limit(1)
+      .single();
+
+    if (settingsError || !mpSettings) {
+      throw new Error("Configurações do Mercado Pago não encontradas");
+    }
+
+    // Mercado Pago envia notificações no formato: { type, data: { id } }
+    if (body.type === "payment") {
+      const paymentId = body.data.id;
+      console.log("Processando pagamento:", paymentId);
+
+      // Buscar detalhes do pagamento no Mercado Pago
+      const accessToken = mpSettings.mp_live_access_token || mpSettings.mp_test_access_token;
+      
+      const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!paymentResponse.ok) {
+        throw new Error("Erro ao buscar pagamento no Mercado Pago");
+      }
+
+      const payment = await paymentResponse.json();
+      console.log("Detalhes do pagamento:", payment);
+
+      const donationId = payment.external_reference;
+
+      if (!donationId) {
+        console.log("Pagamento sem external_reference, ignorando");
+        return new Response(JSON.stringify({ received: true }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Atualizar status da doação baseado no status do pagamento
+      let donationStatus = "pending";
+      
+      if (payment.status === "approved") {
+        donationStatus = "completed";
+      } else if (payment.status === "rejected" || payment.status === "cancelled") {
+        donationStatus = "failed";
+      } else if (payment.status === "refunded" || payment.status === "charged_back") {
+        donationStatus = "refunded";
+      }
+
+      const updateData: any = {
+        status: donationStatus,
+        mp_payment_id: payment.id.toString(),
+        mp_status: payment.status,
+      };
+
+      // Adicionar informações adicionais para pagamentos aprovados
+      if (payment.status === "approved") {
+        updateData.mp_payment_type = payment.payment_type_id;
+        updateData.mp_transaction_amount = payment.transaction_amount;
+      }
+
+      await supabase
+        .from("donations")
+        .update(updateData)
+        .eq("id", donationId);
+
+      console.log(`Doação ${donationId} atualizada para status: ${donationStatus}`);
+    }
+
+    return new Response(
+      JSON.stringify({ received: true }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  } catch (error: any) {
+    console.error("Erro no webhook:", error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  }
+});
