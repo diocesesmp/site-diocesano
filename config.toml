@@ -1,10 +1,13 @@
 project_id = "jwxhstlayjjakzffxqzi"
 
-[functions.create-payment-intent]
+[functions.create-mercadopago-payment]
 verify_jwt = false
 
-[functions.stripe-webhook]
+[functions.mercadopago-webhook]
 verify_jwt = false
 
 [functions.generate-receipt]
+verify_jwt = false
+
+[functions.donation-status]
 verify_jwt = false
