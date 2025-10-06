@@ -162,7 +162,7 @@ const Doacoes = () => {
 
       const isTestMode = mpSettings.mp_environment === 'test';
 
-      // Chamar Edge Function do Supabase para criar pagamento
+      // Chamar Edge Function para criar doação
       const { data: { session } } = await supabase.auth.getSession();
 
       const response = await fetch(EDGE_FUNCTION_URL, {
@@ -188,16 +188,19 @@ const Doacoes = () => {
         throw new Error(errorBody.error || errorBody.message || 'Erro ao criar pagamento.');
       }
 
-      const { preferenceId, publicKey, donationId } = await response.json();
+      const { publicKey, donationId } = await response.json();
 
       // Redirecionar para a página de Checkout
       navigate(`/doacoes/${slug}/checkout`, {
         state: {
-          preferenceId,
           publicKey,
           donationId,
           amount,
-          campaignTitle: campaign.title
+          campaignTitle: campaign.title,
+          campaignId: campaign.id,
+          donorName: formData.name,
+          donorEmail: formData.email,
+          donorPhone: formData.phone
         }
       });
 
