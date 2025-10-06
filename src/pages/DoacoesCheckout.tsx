@@ -19,7 +19,7 @@ const PAYMENT_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/create-mercadopago-pa
 const DoacoesCheckout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  // Desestruturar com valores padrão para evitar 'undefined'
+  
   const { 
     publicKey, 
     donationId, 
@@ -36,23 +36,22 @@ const DoacoesCheckout = () => {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const { toast } = useToast();
 
-  const initializeMercadoPago = async () => {
-    // Verifica se o container ID está presente no DOM ANTES de inicializar
-    if (!document.getElementById('mercadopago-checkout')) {
-      console.error("Erro de Timing: Contêiner 'mercadopago-checkout' não encontrado. Tentativa de Inicialização falhou.");
-      // Tente novamente após um pequeno atraso, se desejar, mas o fix principal é no script.onload
-      setLoading(false);
-      return; 
-    }
-    
+  // --- Lógica de Inicialização do Mercado Pago com Polling ---
+
+  // Função que contém a lógica principal de inicialização do Brick
+  const initializeBrick = async (containerId: string) => {
     try {
+      if (!window.MercadoPago) {
+        throw new Error("SDK do Mercado Pago não está carregado.");
+      }
+
       const mp = new window.MercadoPago(publicKey, {
         locale: 'pt-BR'
       });
 
       const bricksBuilder = mp.bricks();
 
-      await bricksBuilder.create('cardPayment', 'mercadopago-checkout', {
+      await bricksBuilder.create('cardPayment', containerId, {
         initialization: {
           amount: amount,
         },
@@ -68,7 +67,6 @@ const DoacoesCheckout = () => {
         },
         callbacks: {
           onReady: () => {
-            // O Brick está pronto para ser exibido/interagido
             setLoading(false);
           },
           onSubmit: async (formData: any) => {
@@ -96,7 +94,6 @@ const DoacoesCheckout = () => {
 
               if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
-                // Retorna a mensagem de erro detalhada do backend/Mercado Pago
                 throw new Error(errorData.error || errorData.message || 'Erro ao processar pagamento');
               }
 
@@ -111,17 +108,23 @@ const DoacoesCheckout = () => {
                 setTimeout(() => {
                   navigate(`/doacoes/obrigado?donation_id=${donationId}`);
                 }, 2000);
-              } else if (result.status === 'pending') {
+                return true; // Sucesso
+              } 
+              
+              if (result.status === 'pending') {
                 toast({
                   title: "Pagamento pendente",
-                  description: "Seu pagamento está sendo processado.",
+                  description: "Seu pagamento está sendo processado. Você será notificado por e-mail.",
                 });
                 setTimeout(() => {
                   navigate(`/doacoes/obrigado?donation_id=${donationId}`);
                 }, 2000);
-              } else {
-                throw new Error(result.status_detail || 'Pagamento rejeitado');
+                return true; // Sucesso (para o Brick)
               }
+              
+              // Se não for aprovado nem pendente, considera-se falha
+              throw new Error(result.status_detail || 'Pagamento rejeitado');
+
             } catch (error: any) {
               console.error('Erro ao processar pagamento:', error);
               toast({
@@ -130,15 +133,14 @@ const DoacoesCheckout = () => {
                 variant: "destructive",
               });
               setProcessing(false);
-              // IMPORTANTE: Retorna false para evitar que o Brick continue o fluxo de pagamento
-              return false;
+              return false; // Falha (impede que o Brick avance)
             }
           },
           onError: (error: any) => {
             console.error('Erro no Mercado Pago Brick:', error);
             toast({
               title: "Erro",
-              description: error?.message || "Erro ao carregar ou processar pagamento. Verifique as configurações.",
+              description: error?.message || "Erro ao carregar ou processar pagamento.",
               variant: "destructive",
             });
             setLoading(false);
@@ -147,8 +149,7 @@ const DoacoesCheckout = () => {
       });
 
     } catch (error: any) {
-      // Captura o erro 'Could not find the Brick container ID...'
-      console.error('Erro ao inicializar Mercado Pago:', error);
+      console.error('Erro ao inicializar Mercado Pago (Brick):', error);
       toast({
         title: "Erro",
         description: error.message || "Erro ao carregar sistema de pagamento.",
@@ -158,31 +159,57 @@ const DoacoesCheckout = () => {
     }
   };
 
+
+  const startMercadoPagoInitialization = () => {
+    const CONTAINER_ID = 'mercadopago-checkout';
+    let attempts = 0;
+    const MAX_ATTEMPTS = 20;
+    const INTERVAL_MS = 100;
+
+    const intervalId = setInterval(() => {
+      const container = document.getElementById(CONTAINER_ID);
+      
+      if (container) {
+        // Encontrou o contêiner! Limpa o intervalo e inicializa.
+        clearInterval(intervalId);
+        initializeBrick(CONTAINER_ID);
+      } else if (attempts >= MAX_ATTEMPTS) {
+        // Falha: Limpa o intervalo e notifica.
+        clearInterval(intervalId);
+        console.error("Erro FATAL: Contêiner de pagamento não encontrado após esgotar tentativas.");
+        toast({
+          title: "Erro de Carregamento",
+          description: "Não foi possível carregar o formulário de pagamento. Por favor, recarregue a página.",
+          variant: "destructive",
+        });
+        setLoading(false);
+      }
+      attempts++;
+    }, INTERVAL_MS);
+  };
+
+  // --- useEffect para Carregamento e Inicialização ---
+  
   useEffect(() => {
     if (!donationId || !publicKey || !amount) {
       navigate('/');
       return;
     }
     
-    // --- INÍCIO DA CORREÇÃO ---
-    // Otimiza o carregamento do script do Mercado Pago
+    // Se o SDK já estiver carregado, começa o Polling imediatamente.
     if (window.MercadoPago) {
-      // Se já carregou, inicializa diretamente
-      initializeMercadoPago();
+      startMercadoPagoInitialization();
       return;
     }
     
+    // Carrega o script
     const script = document.createElement('script');
     script.src = 'https://sdk.mercadopago.com/js/v2';
     script.async = true;
     
-    // CORREÇÃO DE TIMING: Adiciona um pequeno delay após o script carregar
-    // para garantir que o React já renderizou a div #mercadopago-checkout
+    // Inicia o Polling *somente* depois que o script for carregado
     script.onload = () => {
-      // O script do MP está carregado, agora damos um pequeno respiro para o DOM
-      setTimeout(() => {
-        initializeMercadoPago();
-      }, 100); 
+      startMercadoPagoInitialization();
     };
     
     document.body.appendChild(script);
@@ -191,10 +218,12 @@ const DoacoesCheckout = () => {
       if (document.body.contains(script)) {
         document.body.removeChild(script);
       }
+      // Limpeza de qualquer Polling pendente (embora o Polling se auto-limpe no sucesso/falha)
     };
   }, [donationId, publicKey, amount, navigate]); // Dependências do useEffect
 
-  // O restante do seu JSX (a parte de renderização) permanece inalterado
+  // --- Renderização (JSX) ---
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -237,7 +266,7 @@ const DoacoesCheckout = () => {
                 </p>
               </div>
 
-              {/* A DIV CRÍTICA ESTÁ AQUI - SEU CÓDIGO ESTAVA CORRETO */}
+              {/* O CONTAINER DO BRICK ESTÁ AQUI */}
               <div id="mercadopago-checkout" className="min-h-[500px]">
                 {processing && (
                   <div className="flex flex-col items-center justify-center py-12">
