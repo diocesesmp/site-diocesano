@@ -41,7 +41,7 @@ const AdminImportantLinks = () => {
 
   const fetchLinks = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('important_links')
         .select('*')
         .order('order_position', { ascending: true });
@@ -74,7 +74,7 @@ const AdminImportantLinks = () => {
       };
 
       if (editingLink) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('important_links')
           .update(linkData)
           .eq('id', editingLink.id);
@@ -86,7 +86,7 @@ const AdminImportantLinks = () => {
           description: "Link atualizado com sucesso!",
         });
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('important_links')
           .insert([linkData]);
 
@@ -124,7 +124,7 @@ const AdminImportantLinks = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('important_links')
         .delete()
         .eq('id', id);
@@ -149,7 +149,7 @@ const AdminImportantLinks = () => {
 
   const updateOrder = async (id: string, newPosition: number) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('important_links')
         .update({ order_position: newPosition })
         .eq('id', id);

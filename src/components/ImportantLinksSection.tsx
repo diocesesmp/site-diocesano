@@ -27,7 +27,7 @@ const ImportantLinksSection = () => {
 
   const fetchLinks = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('important_links')
         .select('*')
         .eq('is_active', true)
