@@ -109,7 +109,7 @@ const GaleriaPage = () => {
 
       if (error) throw error;
       
-      const uniqueAlbums = [...new Set(data?.map(item => item.album_name).filter(Boolean))];
+      const uniqueAlbums = [...new Set(data?.map(item => item.album_name).filter(Boolean))] as string[];
       setAlbums(uniqueAlbums);
     } catch (error) {
       console.error('Erro ao carregar álbuns:', error);

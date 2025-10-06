@@ -7,12 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Heart, Loader as Loader2 } from "lucide-react";
-import { loadStripe } from '@stripe/stripe-js';
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-// Definindo a URL da Edge Function usando a URL exportada do client
-const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/create-payment-intent`;
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/create-mercadopago-payment`;
 
 interface Campaign {
   id: string;
@@ -149,35 +147,22 @@ const Doacoes = () => {
     setProcessing(true);
 
     try {
-      // 1. Obter chaves do Stripe
-      const { data: stripeSettings, error: settingsError } = await supabase
-        .from('stripe_settings')
+      // Buscar configurações do Mercado Pago
+      const { data: mpSettings, error: settingsError } = await (supabase as any)
+        .from('mercadopago_settings')
         .select('*')
         .limit(1)
         .maybeSingle();
 
       if (settingsError) throw settingsError;
 
-      if (!stripeSettings) {
-        throw new Error('Configurações do Stripe não encontradas');
+      if (!mpSettings) {
+        throw new Error('Configurações do Mercado Pago não encontradas');
       }
 
-      const isTestMode = stripeSettings.stripe_environment === 'test';
-      const publishableKey = isTestMode
-        ? stripeSettings.stripe_test_publishable_key
-        : stripeSettings.stripe_live_publishable_key;
+      const isTestMode = mpSettings.mp_environment === 'test';
 
-      if (!publishableKey) {
-        throw new Error('Chave pública do Stripe não configurada');
-      }
-
-      // 2. (Removido) Inserção da doação é feita na Edge Function com service role para evitar RLS para anônimos.
-
-      // 3. Carregar Stripe
-      const stripe = await loadStripe(publishableKey);
-      if (!stripe) throw new Error('Erro ao carregar Stripe');
-
-      // 4. CHAMAR EDGE FUNCTION DO SUPABASE
+      // Chamar Edge Function do Supabase para criar pagamento
       const { data: { session } } = await supabase.auth.getSession();
 
       const response = await fetch(EDGE_FUNCTION_URL, {
@@ -199,21 +184,20 @@ const Doacoes = () => {
       });
 
       if (!response.ok) {
-        // Tentativa de obter a mensagem de erro do body da função
         const errorBody = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
-        throw new Error(errorBody.error || errorBody.message || 'Erro ao criar pagamento na função.');
+        throw new Error(errorBody.error || errorBody.message || 'Erro ao criar pagamento.');
       }
 
-      const { clientSecret, donationId } = await response.json();
+      const { preferenceId, publicKey, donationId } = await response.json();
 
-      // 5. Redirecionar para a página de Checkout do Stripe
+      // Redirecionar para a página de Checkout
       navigate(`/doacoes/${slug}/checkout`, {
         state: {
-          clientSecret,
+          preferenceId,
+          publicKey,
           donationId,
           amount,
-          campaignTitle: campaign.title,
-          publishableKey
+          campaignTitle: campaign.title
         }
       });
 
@@ -241,7 +225,6 @@ const Doacoes = () => {
     return null;
   }
 
-  // O restante do componente de renderização HTML/React permanece o mesmo...
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
