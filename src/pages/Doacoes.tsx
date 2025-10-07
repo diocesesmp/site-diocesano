@@ -10,7 +10,7 @@ import { Heart, Loader as Loader2 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/create-mercadopago-payment`;
+const CREATE_DONATION_URL = `${SUPABASE_URL}/functions/v1/create-donation`;
 
 interface Campaign {
   id: string;
@@ -147,48 +147,38 @@ const Doacoes = () => {
     setProcessing(true);
 
     try {
-      // Buscar configurações do Mercado Pago
-      const { data: mpSettings, error: settingsError } = await (supabase as any)
-        .from('mercadopago_settings')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
+      console.log('Criando doação com dados:', {
+        amount,
+        campaignId: campaign.id,
+        donorEmail: formData.email,
+        donorName: formData.name,
+        donorPhone: formData.phone
+      });
 
-      if (settingsError) throw settingsError;
-
-      if (!mpSettings) {
-        throw new Error('Configurações do Mercado Pago não encontradas');
-      }
-
-      const isTestMode = mpSettings.mp_environment === 'test';
-
-      // Chamar Edge Function para criar doação
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const response = await fetch(EDGE_FUNCTION_URL, {
+      const response = await fetch(CREATE_DONATION_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || SUPABASE_PUBLISHABLE_KEY}`,
+          'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
           'apikey': SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({
           amount,
           campaignId: campaign.id,
-          campaignTitle: campaign.title,
           donorEmail: formData.email,
           donorName: formData.name,
           donorPhone: formData.phone,
-          isTestMode
         })
       });
 
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
-        throw new Error(errorBody.error || errorBody.message || 'Erro ao criar pagamento.');
+        console.error('Erro na resposta:', errorBody);
+        throw new Error(errorBody.error || errorBody.message || 'Erro ao criar doação.');
       }
 
       const { publicKey, donationId } = await response.json();
+      console.log('Doação criada:', donationId);
 
       // Redirecionar para a página de Checkout
       navigate(`/doacoes/${slug}/checkout`, {
