@@ -122,13 +122,13 @@ const DoacoesCheckout = () => {
           onSubmit: async (formData: any) => {
             setProcessing(true);
             try {
-              const { data: { session } } = await supabase.auth.getSession();
+              console.log('Dados do formulário Mercado Pago:', formData);
 
               const response = await fetch(PAYMENT_FUNCTION_URL, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${session?.access_token || SUPABASE_PUBLISHABLE_KEY}`,
+                  'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
                   'apikey': SUPABASE_PUBLISHABLE_KEY,
                 },
                 body: JSON.stringify({
