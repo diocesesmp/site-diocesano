@@ -47,6 +47,14 @@ const DoacoesCheckout = () => {
 
   const initializeMercadoPago = async () => {
     try {
+      // Garantir que o elemento existe antes de inicializar
+      const container = document.getElementById('mercadopago-checkout');
+      if (!container) {
+        console.log('Aguardando container...');
+        setTimeout(() => initializeMercadoPago(), 100);
+        return;
+      }
+
       const mp = new window.MercadoPago(publicKey, {
         locale: 'pt-BR'
       });
