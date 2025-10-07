@@ -18,11 +18,18 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { donationId, campaignId, amount, paymentData, donorEmail, donorName, donorPhone } = body;
 
-    console.log("Processando pagamento Mercado Pago:", { donationId, amount });
+    console.log("Processando pagamento Mercado Pago:", { donationId, amount, paymentData });
 
+    // Sempre usar service role key para operações de pagamento
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
 
     const { data: mpSettings, error: settingsError } = await supabase
@@ -47,22 +54,33 @@ Deno.serve(async (req: Request) => {
 
     console.log("Modo:", isTestMode ? "test" : "live");
 
-    const paymentPayload = {
-      transaction_amount: amount,
+    const paymentPayload: any = {
+      transaction_amount: Number(amount),
       token: paymentData.token,
       description: `Doação - Campanha ID: ${campaignId}`,
-      installments: paymentData.installments || 1,
+      installments: Number(paymentData.installments || 1),
       payment_method_id: paymentData.payment_method_id,
-      issuer_id: paymentData.issuer_id,
       payer: {
-        email: donorEmail || paymentData.payer?.email,
-        identification: paymentData.payer?.identification,
+        email: donorEmail || paymentData.payer?.email || 'doador@example.com',
       },
       external_reference: donationId,
       notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mercadopago-webhook`,
     };
 
-    console.log("Criando pagamento no Mercado Pago...");
+    // Adicionar issuer_id apenas se existir
+    if (paymentData.issuer_id) {
+      paymentPayload.issuer_id = paymentData.issuer_id;
+    }
+
+    // Adicionar identificação se existir
+    if (paymentData.payer?.identification) {
+      paymentPayload.payer.identification = {
+        type: paymentData.payer.identification.type,
+        number: paymentData.payer.identification.number
+      };
+    }
+
+    console.log("Criando pagamento no Mercado Pago...", JSON.stringify(paymentPayload, null, 2));
 
     const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
       method: "POST",
@@ -75,11 +93,20 @@ Deno.serve(async (req: Request) => {
     });
 
     const mpData = await mpResponse.json();
-    console.log("Resposta do Mercado Pago:", mpData);
+    console.log("Resposta do Mercado Pago:", JSON.stringify(mpData, null, 2));
 
     if (!mpResponse.ok) {
       console.error("Erro na API do Mercado Pago:", mpData);
-      const errorMessage = mpData.message || mpData.cause?.[0]?.description || "Erro ao processar pagamento";
+
+      // Tratar erros específicos do Mercado Pago
+      let errorMessage = "Erro ao processar pagamento";
+
+      if (mpData.cause && mpData.cause.length > 0) {
+        errorMessage = mpData.cause[0].description || errorMessage;
+      } else if (mpData.message) {
+        errorMessage = mpData.message;
+      }
+
       throw new Error(errorMessage);
     }
 
