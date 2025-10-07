@@ -18,7 +18,21 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const { donationId, campaignId, amount, paymentData, donorEmail, donorName, donorPhone } = body;
 
-    console.log("Processando pagamento Mercado Pago:", { donationId, amount, paymentData });
+    console.log("Processando pagamento Mercado Pago:", { donationId, amount });
+    console.log("Payment Data recebido:", JSON.stringify(paymentData, null, 2));
+
+    // Validar dados obrigatórios
+    if (!donationId || !campaignId || !amount || !paymentData) {
+      throw new Error("Dados obrigatórios ausentes");
+    }
+
+    if (!paymentData.token) {
+      throw new Error("Token de pagamento não fornecido. Verifique os dados do cartão.");
+    }
+
+    if (!paymentData.payment_method_id) {
+      throw new Error("Método de pagamento não identificado");
+    }
 
     // Sempre usar service role key para operações de pagamento
     const supabase = createClient(
