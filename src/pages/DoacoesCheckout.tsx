@@ -121,65 +121,74 @@ const DoacoesCheckout = () => {
           },
           onSubmit: async (formData: any) => {
             setProcessing(true);
-            try {
-              console.log('Dados do formulário Mercado Pago:', formData);
 
-              const response = await fetch(PAYMENT_FUNCTION_URL, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-                  'apikey': SUPABASE_PUBLISHABLE_KEY,
-                },
-                body: JSON.stringify({
-                  donationId,
-                  campaignId,
-                  amount,
-                  paymentData: formData,
-                  donorEmail,
-                  donorName,
-                  donorPhone,
-                })
-              });
+            return new Promise(async (resolve, reject) => {
+              try {
+                console.log('Dados do formulário Mercado Pago:', formData);
 
-              if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
-                throw new Error(errorData.error || errorData.message || 'Erro ao processar pagamento');
-              }
+                if (!formData || !formData.token) {
+                  throw new Error('Dados do pagamento incompletos. Tente novamente.');
+                }
 
-              const result = await response.json();
-
-              if (result.status === 'approved') {
-                setPaymentSuccess(true);
-                toast({
-                  title: "Pagamento aprovado!",
-                  description: "Sua doação foi processada com sucesso.",
+                const response = await fetch(PAYMENT_FUNCTION_URL, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+                    'apikey': SUPABASE_PUBLISHABLE_KEY,
+                  },
+                  body: JSON.stringify({
+                    donationId,
+                    campaignId,
+                    amount,
+                    paymentData: formData,
+                    donorEmail,
+                    donorName,
+                    donorPhone,
+                  })
                 });
-                setTimeout(() => {
-                  navigate(`/doacoes/obrigado?donation_id=${donationId}`);
-                }, 2000);
-              } else if (result.status === 'pending') {
+
+                if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+                  throw new Error(errorData.error || errorData.message || 'Erro ao processar pagamento');
+                }
+
+                const result = await response.json();
+
+                if (result.status === 'approved') {
+                  setPaymentSuccess(true);
+                  toast({
+                    title: "Pagamento aprovado!",
+                    description: "Sua doação foi processada com sucesso.",
+                  });
+                  setTimeout(() => {
+                    navigate(`/doacoes/obrigado?donation_id=${donationId}`);
+                  }, 2000);
+                  resolve();
+                } else if (result.status === 'pending') {
+                  toast({
+                    title: "Pagamento pendente",
+                    description: "Seu pagamento está sendo processado.",
+                  });
+                  setTimeout(() => {
+                    navigate(`/doacoes/obrigado?donation_id=${donationId}`);
+                  }, 2000);
+                  resolve();
+                } else {
+                  const errorMessage = getErrorMessage(result.status_detail || '');
+                  reject(new Error(errorMessage));
+                }
+              } catch (error: any) {
+                console.error('Erro ao processar pagamento:', error);
                 toast({
-                  title: "Pagamento pendente",
-                  description: "Seu pagamento está sendo processado.",
+                  title: "Pagamento não aprovado",
+                  description: error.message || "Verifique os dados do cartão e tente novamente.",
+                  variant: "destructive",
                 });
-                setTimeout(() => {
-                  navigate(`/doacoes/obrigado?donation_id=${donationId}`);
-                }, 2000);
-              } else {
-                // Pagamento rejeitado - mostrar mensagem específica
-                const errorMessage = getErrorMessage(result.status_detail || '');
-                throw new Error(errorMessage);
+                setProcessing(false);
+                reject(error);
               }
-            } catch (error: any) {
-              console.error('Erro ao processar pagamento:', error);
-              toast({
-                title: "Pagamento não aprovado",
-                description: error.message || "Verifique os dados do cartão e tente novamente.",
-                variant: "destructive",
-              });
-              setProcessing(false);
-            }
+            });
           },
           onError: (error: any) => {
             console.error('Erro no Mercado Pago Brick:', error);
