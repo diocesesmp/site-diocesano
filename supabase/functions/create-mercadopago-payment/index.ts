@@ -16,91 +16,106 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    console.log("Webhook recebido:", body);
+    const { donationId, campaignId, amount, paymentData, donorEmail, donorName, donorPhone } = body;
+
+    console.log("Processando pagamento Mercado Pago:", { donationId, amount });
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Buscar configurações do Mercado Pago
     const { data: mpSettings, error: settingsError } = await supabase
       .from("mercadopago_settings")
       .select("*")
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (settingsError || !mpSettings) {
+      console.error("Erro ao buscar configurações:", settingsError);
       throw new Error("Configurações do Mercado Pago não encontradas");
     }
 
-    // Mercado Pago envia notificações no formato: { type, data: { id } }
-    if (body.type === "payment") {
-      const paymentId = body.data.id;
-      console.log("Processando pagamento:", paymentId);
+    const isTestMode = mpSettings.mp_environment === 'test';
+    const accessToken = isTestMode
+      ? mpSettings.mp_test_access_token
+      : mpSettings.mp_live_access_token;
 
-      // Buscar detalhes do pagamento no Mercado Pago
-      const isTestMode = mpSettings.mp_environment === 'test';
-      const accessToken = isTestMode
-        ? mpSettings.mp_test_access_token
-        : mpSettings.mp_live_access_token;
-      
-      const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!paymentResponse.ok) {
-        throw new Error("Erro ao buscar pagamento no Mercado Pago");
-      }
-
-      const payment = await paymentResponse.json();
-      console.log("Detalhes do pagamento:", payment);
-
-      const donationId = payment.external_reference;
-
-      if (!donationId) {
-        console.log("Pagamento sem external_reference, ignorando");
-        return new Response(JSON.stringify({ received: true }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Atualizar status da doação baseado no status do pagamento
-      let donationStatus = "pending";
-      
-      if (payment.status === "approved") {
-        donationStatus = "completed";
-      } else if (payment.status === "rejected" || payment.status === "cancelled") {
-        donationStatus = "failed";
-      } else if (payment.status === "refunded" || payment.status === "charged_back") {
-        donationStatus = "refunded";
-      }
-
-      const updateData: any = {
-        status: donationStatus,
-        mp_payment_id: payment.id.toString(),
-        mp_status: payment.status,
-      };
-
-      // Adicionar informações adicionais para pagamentos aprovados
-      if (payment.status === "approved") {
-        updateData.mp_payment_type = payment.payment_type_id;
-        updateData.mp_transaction_amount = payment.transaction_amount;
-      }
-
-      await supabase
-        .from("donations")
-        .update(updateData)
-        .eq("id", donationId);
-
-      console.log(`Doação ${donationId} atualizada para status: ${donationStatus}`);
+    if (!accessToken) {
+      throw new Error("Access token do Mercado Pago não configurado");
     }
 
+    console.log("Modo:", isTestMode ? "test" : "live");
+
+    const paymentPayload = {
+      transaction_amount: amount,
+      token: paymentData.token,
+      description: `Doação - Campanha ID: ${campaignId}`,
+      installments: paymentData.installments || 1,
+      payment_method_id: paymentData.payment_method_id,
+      issuer_id: paymentData.issuer_id,
+      payer: {
+        email: donorEmail || paymentData.payer?.email,
+        identification: paymentData.payer?.identification,
+      },
+      external_reference: donationId,
+      notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mercadopago-webhook`,
+    };
+
+    console.log("Criando pagamento no Mercado Pago...");
+
+    const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${accessToken}`,
+        "X-Idempotency-Key": donationId,
+      },
+      body: JSON.stringify(paymentPayload),
+    });
+
+    const mpData = await mpResponse.json();
+    console.log("Resposta do Mercado Pago:", mpData);
+
+    if (!mpResponse.ok) {
+      console.error("Erro na API do Mercado Pago:", mpData);
+      const errorMessage = mpData.message || mpData.cause?.[0]?.description || "Erro ao processar pagamento";
+      throw new Error(errorMessage);
+    }
+
+    let donationStatus = "pending";
+    if (mpData.status === "approved") {
+      donationStatus = "completed";
+    } else if (mpData.status === "rejected") {
+      donationStatus = "failed";
+    }
+
+    const updateData: any = {
+      status: donationStatus,
+      mp_payment_id: mpData.id.toString(),
+      mp_status: mpData.status,
+      mp_status_detail: mpData.status_detail,
+    };
+
+    if (mpData.status === "approved") {
+      updateData.mp_payment_type = mpData.payment_type_id;
+      updateData.mp_transaction_amount = mpData.transaction_amount;
+    }
+
+    await supabase
+      .from("donations")
+      .update(updateData)
+      .eq("id", donationId);
+
+    console.log(`Doação ${donationId} atualizada. Status: ${mpData.status}`);
+
     return new Response(
-      JSON.stringify({ received: true }),
+      JSON.stringify({
+        id: mpData.id,
+        status: mpData.status,
+        status_detail: mpData.status_detail,
+        payment_method_id: mpData.payment_method_id,
+      }),
       {
         status: 200,
         headers: {
@@ -110,9 +125,12 @@ Deno.serve(async (req: Request) => {
       }
     );
   } catch (error: any) {
-    console.error("Erro no webhook:", error);
+    console.error("Erro ao criar pagamento:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: error.message,
+        details: error.toString()
+      }),
       {
         status: 400,
         headers: {
