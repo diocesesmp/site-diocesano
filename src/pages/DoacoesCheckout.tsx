@@ -31,11 +31,25 @@ const DoacoesCheckout = () => {
       return;
     }
 
+    // Verificar se o script já foi carregado
+    if (window.MercadoPago) {
+      initializeMercadoPago();
+      return;
+    }
+
     // Carregar script do Mercado Pago
     const script = document.createElement('script');
     script.src = 'https://sdk.mercadopago.com/js/v2';
     script.async = true;
     script.onload = () => initializeMercadoPago();
+    script.onerror = () => {
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar sistema de pagamento.",
+        variant: "destructive",
+      });
+      setLoading(false);
+    };
     document.body.appendChild(script);
 
     return () => {
@@ -47,22 +61,14 @@ const DoacoesCheckout = () => {
 
   const initializeMercadoPago = async () => {
     try {
-      // Garantir que o elemento existe antes de inicializar
-      const container = document.getElementById('mercadopago-checkout');
-      if (!container) {
-        console.log('Aguardando container...');
-        setTimeout(() => initializeMercadoPago(), 100);
-        return;
-      }
-
       const mp = new window.MercadoPago(publicKey, {
         locale: 'pt-BR'
       });
 
-      // Criar Card Payment Brick (checkout transparente)
+      // Criar Card Payment Brick
       const bricksBuilder = mp.bricks();
-
-      await bricksBuilder.create('cardPayment', 'mercadopago-checkout', {
+      
+      const cardPaymentBrickController = await bricksBuilder.create('cardPayment', 'mercadopago-checkout', {
         initialization: {
           amount: amount,
         },
@@ -151,24 +157,16 @@ const DoacoesCheckout = () => {
         },
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao inicializar Mercado Pago:', error);
       toast({
         title: "Erro",
-        description: "Erro ao carregar sistema de pagamento.",
+        description: error?.message || "Erro ao carregar sistema de pagamento.",
         variant: "destructive",
       });
       setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
 
   if (paymentSuccess) {
     return (
@@ -187,7 +185,7 @@ const DoacoesCheckout = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 container mx-auto px-4 py-12">
+      <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardHeader>
@@ -204,19 +202,28 @@ const DoacoesCheckout = () => {
                 </p>
               </div>
 
-              <div id="mercadopago-checkout" className="min-h-[500px]">
-                {processing && (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin mb-4" />
-                    <p className="text-muted-foreground">Processando pagamento...</p>
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-12 min-h-[400px]">
+                  <Loader2 className="h-8 w-8 animate-spin mb-4" />
+                  <p className="text-muted-foreground">Carregando formulário de pagamento...</p>
+                </div>
+              ) : (
+                <>
+                  <div id="mercadopago-checkout" className="min-h-[400px]">
+                    {processing && (
+                      <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin mb-4" />
+                        <p className="text-muted-foreground">Processando pagamento...</p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              <p className="text-xs text-center text-muted-foreground mt-6">
-                <CreditCard className="h-4 w-4 inline mr-1" />
-                Pagamento seguro processado pelo Mercado Pago
-              </p>
+                  <p className="text-xs text-center text-muted-foreground mt-6">
+                    <CreditCard className="h-4 w-4 inline mr-1" />
+                    Pagamento seguro processado pelo Mercado Pago
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
