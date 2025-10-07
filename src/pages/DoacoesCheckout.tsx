@@ -23,8 +23,10 @@ const DoacoesCheckout = () => {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
   const { toast } = useToast();
 
+  // Carregar script do Mercado Pago
   useEffect(() => {
     if (!donationId || !publicKey || !amount) {
       navigate('/');
@@ -33,7 +35,8 @@ const DoacoesCheckout = () => {
 
     // Verificar se o script já foi carregado
     if (window.MercadoPago) {
-      initializeMercadoPago();
+      setScriptLoaded(true);
+      setLoading(false);
       return;
     }
 
@@ -41,7 +44,10 @@ const DoacoesCheckout = () => {
     const script = document.createElement('script');
     script.src = 'https://sdk.mercadopago.com/js/v2';
     script.async = true;
-    script.onload = () => initializeMercadoPago();
+    script.onload = () => {
+      setScriptLoaded(true);
+      setLoading(false);
+    };
     script.onerror = () => {
       toast({
         title: "Erro",
@@ -58,6 +64,13 @@ const DoacoesCheckout = () => {
       }
     };
   }, [donationId, publicKey, amount, navigate]);
+
+  // Inicializar Mercado Pago após script carregar e componente montar
+  useEffect(() => {
+    if (!scriptLoaded || !publicKey) return;
+    
+    initializeMercadoPago();
+  }, [scriptLoaded, publicKey]);
 
   const initializeMercadoPago = async () => {
     try {
