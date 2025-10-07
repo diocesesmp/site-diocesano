@@ -72,6 +72,26 @@ const DoacoesCheckout = () => {
     initializeMercadoPago();
   }, [scriptLoaded, publicKey]);
 
+  // Mapeamento de erros do Mercado Pago para mensagens amigáveis
+  const getErrorMessage = (statusDetail: string): string => {
+    const errorMessages: Record<string, string> = {
+      'cc_rejected_bad_filled_card_number': 'Número do cartão inválido. Verifique e tente novamente.',
+      'cc_rejected_bad_filled_date': 'Data de validade inválida. Verifique e tente novamente.',
+      'cc_rejected_bad_filled_security_code': 'Código de segurança inválido. Verifique e tente novamente.',
+      'cc_rejected_blacklist': 'Não foi possível processar seu pagamento.',
+      'cc_rejected_call_for_authorize': 'Entre em contato com seu banco para autorizar o pagamento.',
+      'cc_rejected_card_disabled': 'Cartão desabilitado. Entre em contato com seu banco.',
+      'cc_rejected_card_error': 'Não foi possível processar seu cartão.',
+      'cc_rejected_duplicated_payment': 'Você já realizou um pagamento com esse valor. Se precisar pagar novamente, use outro cartão.',
+      'cc_rejected_high_risk': 'Pagamento recusado. Tente com outro meio de pagamento.',
+      'cc_rejected_insufficient_amount': 'Saldo insuficiente no cartão.',
+      'cc_rejected_invalid_installments': 'Número de parcelas não aceito para este cartão.',
+      'cc_rejected_max_attempts': 'Você atingiu o limite de tentativas. Tente novamente em 24 horas.',
+      'cc_rejected_other_reason': 'Pagamento recusado. Verifique os dados do cartão ou tente outro meio de pagamento.',
+    };
+    return errorMessages[statusDetail] || 'Pagamento recusado. Verifique os dados e tente novamente.';
+  };
+
   const initializeMercadoPago = async () => {
     try {
       const mp = new window.MercadoPago(publicKey, {
@@ -147,13 +167,15 @@ const DoacoesCheckout = () => {
                   navigate(`/doacoes/obrigado?donation_id=${donationId}`);
                 }, 2000);
               } else {
-                throw new Error(result.status_detail || 'Pagamento rejeitado');
+                // Pagamento rejeitado - mostrar mensagem específica
+                const errorMessage = getErrorMessage(result.status_detail || '');
+                throw new Error(errorMessage);
               }
             } catch (error: any) {
               console.error('Erro ao processar pagamento:', error);
               toast({
-                title: "Erro no pagamento",
-                description: error.message || "Erro ao processar pagamento. Tente novamente.",
+                title: "Pagamento não aprovado",
+                description: error.message || "Verifique os dados do cartão e tente novamente.",
                 variant: "destructive",
               });
               setProcessing(false);
@@ -163,9 +185,10 @@ const DoacoesCheckout = () => {
             console.error('Erro no Mercado Pago Brick:', error);
             toast({
               title: "Erro",
-              description: "Erro ao processar pagamento.",
+              description: "Erro ao processar pagamento. Tente novamente.",
               variant: "destructive",
             });
+            setProcessing(false);
           },
         },
       });
