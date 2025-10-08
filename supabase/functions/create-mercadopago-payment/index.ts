@@ -14,27 +14,37 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const startTime = Date.now();
+
   try {
     const body = await req.json();
     const { donationId, campaignId, amount, paymentData, donorEmail, donorName, donorPhone } = body;
 
     console.log("Processando pagamento Mercado Pago:", { donationId, amount });
-    console.log("Payment Data recebido:", JSON.stringify(paymentData, null, 2));
 
-    // Validar dados obrigatórios
+    // Validar dados obrigatórios rapidamente
     if (!donationId || !campaignId || !amount || !paymentData) {
-      throw new Error("Dados obrigatórios ausentes");
+      return new Response(
+        JSON.stringify({ error: "Dados obrigatórios ausentes" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (!paymentData.token) {
-      throw new Error("Token de pagamento não fornecido. Verifique os dados do cartão.");
+      return new Response(
+        JSON.stringify({ error: "Token de pagamento não fornecido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (!paymentData.payment_method_id) {
-      throw new Error("Método de pagamento não identificado");
+      return new Response(
+        JSON.stringify({ error: "Método de pagamento não identificado" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Sempre usar service role key para operações de pagamento
+    // Criar cliente Supabase com configuração otimizada
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -46,15 +56,19 @@ Deno.serve(async (req: Request) => {
       }
     );
 
+    // Buscar configurações em paralelo com validações
     const { data: mpSettings, error: settingsError } = await supabase
       .from("mercadopago_settings")
-      .select("*")
+      .select("mp_environment, mp_test_access_token, mp_live_access_token")
       .limit(1)
       .maybeSingle();
 
     if (settingsError || !mpSettings) {
       console.error("Erro ao buscar configurações:", settingsError);
-      throw new Error("Configurações do Mercado Pago não encontradas");
+      return new Response(
+        JSON.stringify({ error: "Configurações do Mercado Pago não encontradas" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const isTestMode = mpSettings.mp_environment === 'test';
@@ -63,10 +77,13 @@ Deno.serve(async (req: Request) => {
       : mpSettings.mp_live_access_token;
 
     if (!accessToken) {
-      throw new Error("Access token do Mercado Pago não configurado");
+      return new Response(
+        JSON.stringify({ error: "Access token do Mercado Pago não configurado" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log("Modo:", isTestMode ? "test" : "live");
+    console.log("Modo:", isTestMode ? "test" : "live", "Tempo até agora:", Date.now() - startTime, "ms");
 
     const paymentPayload: any = {
       transaction_amount: Number(amount),
@@ -94,25 +111,52 @@ Deno.serve(async (req: Request) => {
       };
     }
 
-    console.log("Criando pagamento no Mercado Pago...", JSON.stringify(paymentPayload, null, 2));
+    console.log("Criando pagamento no Mercado Pago...");
 
-    const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${accessToken}`,
-        "X-Idempotency-Key": donationId,
-      },
-      body: JSON.stringify(paymentPayload),
-    });
+    // Criar timeout controller para a requisição do Mercado Pago
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 segundos
 
-    const mpData = await mpResponse.json();
-    console.log("Resposta do Mercado Pago:", JSON.stringify(mpData, null, 2));
+    let mpResponse;
+    let mpData;
+
+    try {
+      mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+          "X-Idempotency-Key": donationId,
+        },
+        body: JSON.stringify(paymentPayload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      mpData = await mpResponse.json();
+
+      console.log("Resposta do Mercado Pago - Status:", mpData.status, "Tempo total:", Date.now() - startTime, "ms");
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+
+      if (fetchError.name === 'AbortError') {
+        console.error("Timeout na API do Mercado Pago");
+        return new Response(
+          JSON.stringify({ error: "Timeout ao processar pagamento. Tente novamente." }),
+          { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.error("Erro ao chamar API do Mercado Pago:", fetchError);
+      return new Response(
+        JSON.stringify({ error: "Erro ao conectar com o Mercado Pago. Tente novamente." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!mpResponse.ok) {
       console.error("Erro na API do Mercado Pago:", mpData);
 
-      // Tratar erros específicos do Mercado Pago
       let errorMessage = "Erro ao processar pagamento";
 
       if (mpData.cause && mpData.cause.length > 0) {
@@ -121,7 +165,10 @@ Deno.serve(async (req: Request) => {
         errorMessage = mpData.message;
       }
 
-      throw new Error(errorMessage);
+      return new Response(
+        JSON.stringify({ error: errorMessage, status_detail: mpData.status_detail }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     let donationStatus = "pending";
@@ -143,12 +190,15 @@ Deno.serve(async (req: Request) => {
       updateData.mp_transaction_amount = mpData.transaction_amount;
     }
 
-    await supabase
+    // Atualizar banco de dados de forma assíncrona (não bloquear resposta)
+    supabase
       .from("donations")
       .update(updateData)
-      .eq("id", donationId);
+      .eq("id", donationId)
+      .then(() => console.log(`Doação ${donationId} atualizada. Status: ${mpData.status}`))
+      .catch(error => console.error("Erro ao atualizar doação:", error));
 
-    console.log(`Doação ${donationId} atualizada. Status: ${mpData.status}`);
+    console.log("Tempo total de processamento:", Date.now() - startTime, "ms");
 
     return new Response(
       JSON.stringify({
@@ -169,11 +219,11 @@ Deno.serve(async (req: Request) => {
     console.error("Erro ao criar pagamento:", error);
     return new Response(
       JSON.stringify({
-        error: error.message,
+        error: error.message || "Erro ao processar pagamento",
         details: error.toString()
       }),
       {
-        status: 400,
+        status: 500,
         headers: {
           ...corsHeaders,
           "Content-Type": "application/json",
