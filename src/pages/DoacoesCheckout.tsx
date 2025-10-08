@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader as Loader2, CreditCard, CheckCircle } from "lucide-react";
+import { Loader as Loader2, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
@@ -24,6 +24,7 @@ const DoacoesCheckout = () => {
   const [processing, setProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Carregar script do Mercado Pago
@@ -94,14 +95,15 @@ const DoacoesCheckout = () => {
 
   const initializeMercadoPago = async () => {
     try {
+      setError(null);
       const mp = new window.MercadoPago(publicKey, {
         locale: 'pt-BR'
       });
 
-      // Criar Card Payment Brick
+      // Criar Card Payment Brick com configurações melhoradas
       const bricksBuilder = mp.bricks();
-      
-      const cardPaymentBrickController = await bricksBuilder.create('cardPayment', 'mercadopago-checkout', {
+
+      const renderConfig = {
         initialization: {
           amount: amount,
         },
@@ -117,20 +119,20 @@ const DoacoesCheckout = () => {
         },
         callbacks: {
           onReady: () => {
+            console.log('Mercado Pago Brick carregado');
             setLoading(false);
           },
           onSubmit: async (formData: any) => {
             try {
               setProcessing(true);
-              console.log('Dados do formulário Mercado Pago:', formData);
+              console.log('Iniciando processamento do pagamento');
 
               if (!formData || !formData.token) {
                 throw new Error('Dados do pagamento incompletos. Tente novamente.');
               }
 
-              // Criar AbortController para timeout
               const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+              const timeoutId = setTimeout(() => controller.abort(), 30000);
 
               try {
                 const response = await fetch(PAYMENT_FUNCTION_URL, {
@@ -218,23 +220,16 @@ const DoacoesCheckout = () => {
           onError: (error: any) => {
             console.error('Erro no Mercado Pago Brick:', error);
             setProcessing(false);
-
-            toast({
-              title: "Erro",
-              description: "Erro ao processar pagamento. Tente novamente.",
-              variant: "destructive",
-            });
+            setError('Erro ao carregar o formulário de pagamento');
           },
         },
-      });
+      };
+
+      await bricksBuilder.create('cardPayment', 'mercadopago-checkout', renderConfig);
 
     } catch (error: any) {
       console.error('Erro ao inicializar Mercado Pago:', error);
-      toast({
-        title: "Erro",
-        description: error?.message || "Erro ao carregar sistema de pagamento.",
-        variant: "destructive",
-      });
+      setError(error?.message || 'Erro ao carregar sistema de pagamento');
       setLoading(false);
     }
   };
@@ -277,6 +272,21 @@ const DoacoesCheckout = () => {
                 <div className="flex flex-col items-center justify-center py-12 min-h-[400px]">
                   <Loader2 className="h-8 w-8 animate-spin mb-4" />
                   <p className="text-muted-foreground">Carregando formulário de pagamento...</p>
+                </div>
+              ) : error ? (
+                <div className="flex flex-col items-center justify-center py-12 min-h-[400px] text-center">
+                  <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Erro ao carregar pagamento</h3>
+                  <p className="text-muted-foreground mb-4">{error}</p>
+                  <Button
+                    onClick={() => {
+                      setError(null);
+                      setLoading(true);
+                      setTimeout(() => initializeMercadoPago(), 100);
+                    }}
+                  >
+                    Tentar novamente
+                  </Button>
                 </div>
               ) : (
                 <>
