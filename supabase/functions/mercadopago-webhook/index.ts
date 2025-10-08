@@ -15,7 +15,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Parse seguro do corpo (alguns webhooks do MP podem vir sem JSON)
     let body: any = null;
     try {
       body = await req.json();
@@ -32,25 +31,23 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Buscar configurações do Mercado Pago
     const { data: mpSettings, error: settingsError } = await supabase
       .from("mercadopago_settings")
       .select("*")
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (settingsError || !mpSettings) {
+      console.error("Erro ao buscar configurações:", settingsError);
       throw new Error("Configurações do Mercado Pago não encontradas");
     }
 
-    // Suporte a ambos formatos: body.type/data.id e query params (?topic=payment&id=...)
     const topic = body?.type || params.get("type") || params.get("topic");
     const paymentId = body?.data?.id || params.get("data.id") || params.get("id");
 
     if (topic === "payment" && paymentId) {
       console.log("Processando pagamento:", paymentId);
 
-      // Buscar detalhes do pagamento no Mercado Pago
       const isTest = mpSettings.mp_environment === 'test';
       const accessToken = isTest ? mpSettings.mp_test_access_token : mpSettings.mp_live_access_token;
       
@@ -61,6 +58,7 @@ Deno.serve(async (req: Request) => {
       });
 
       if (!paymentResponse.ok) {
+        console.error("Erro ao buscar pagamento no Mercado Pago:", await paymentResponse.text());
         throw new Error("Erro ao buscar pagamento no Mercado Pago");
       }
 
@@ -77,7 +75,6 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Mapear status do Mercado Pago para status da doação
       let donationStatus = "pending";
 
       if (payment.status === "approved") {
@@ -97,7 +94,6 @@ Deno.serve(async (req: Request) => {
         mp_status_detail: payment.status_detail,
       };
 
-      // Adicionar informações adicionais para pagamentos aprovados
       if (payment.status === "approved") {
         updateData.mp_payment_type = payment.payment_type_id;
         updateData.mp_transaction_amount = payment.transaction_amount;
@@ -133,7 +129,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({ error: error.message }),
       {
-        status: 400,
+        status: 500,
         headers: {
           ...corsHeaders,
           "Content-Type": "application/json",
