@@ -171,11 +171,16 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Mapear status do Mercado Pago para status da doação
     let donationStatus = "pending";
     if (mpData.status === "approved") {
       donationStatus = "completed";
-    } else if (mpData.status === "rejected") {
+    } else if (mpData.status === "rejected" || mpData.status === "cancelled") {
       donationStatus = "failed";
+    } else if (mpData.status === "in_process" || mpData.status === "pending") {
+      donationStatus = "pending";
+    } else if (mpData.status === "refunded" || mpData.status === "charged_back") {
+      donationStatus = "refunded";
     }
 
     const updateData: any = {
@@ -190,13 +195,20 @@ Deno.serve(async (req: Request) => {
       updateData.mp_transaction_amount = mpData.transaction_amount;
     }
 
-    // Atualizar banco de dados de forma assíncrona (não bloquear resposta)
-    supabase
+    console.log("Atualizando doação com status:", donationStatus, "| Status MP:", mpData.status);
+
+    // Atualizar banco de dados de forma SÍNCRONA para garantir que o status seja atualizado
+    const { error: updateError } = await supabase
       .from("donations")
       .update(updateData)
-      .eq("id", donationId)
-      .then(() => console.log(`Doação ${donationId} atualizada. Status: ${mpData.status}`))
-      .catch(error => console.error("Erro ao atualizar doação:", error));
+      .eq("id", donationId);
+
+    if (updateError) {
+      console.error("Erro ao atualizar doação:", updateError);
+      // Continua mesmo com erro de atualização, pois o pagamento foi processado
+    } else {
+      console.log(`Doação ${donationId} atualizada com sucesso. Status: ${donationStatus} (MP: ${mpData.status})`);
+    }
 
     console.log("Tempo total de processamento:", Date.now() - startTime, "ms");
 
