@@ -120,16 +120,19 @@ const DoacoesCheckout = () => {
             setLoading(false);
           },
           onSubmit: async (formData: any) => {
-            setProcessing(true);
+            try {
+              setProcessing(true);
+              console.log('Dados do formulário Mercado Pago:', formData);
 
-            return new Promise(async (resolve, reject) => {
+              if (!formData || !formData.token) {
+                throw new Error('Dados do pagamento incompletos. Tente novamente.');
+              }
+
+              // Criar AbortController para timeout
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+
               try {
-                console.log('Dados do formulário Mercado Pago:', formData);
-
-                if (!formData || !formData.token) {
-                  throw new Error('Dados do pagamento incompletos. Tente novamente.');
-                }
-
                 const response = await fetch(PAYMENT_FUNCTION_URL, {
                   method: 'POST',
                   headers: {
@@ -145,15 +148,28 @@ const DoacoesCheckout = () => {
                     donorEmail,
                     donorName,
                     donorPhone,
-                  })
+                  }),
+                  signal: controller.signal,
                 });
 
-                if (!response.ok) {
-                  const errorData = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
-                  throw new Error(errorData.error || errorData.message || 'Erro ao processar pagamento');
+                clearTimeout(timeoutId);
+
+                let result;
+                const contentType = response.headers.get('content-type');
+
+                if (contentType && contentType.includes('application/json')) {
+                  result = await response.json();
+                } else {
+                  const text = await response.text();
+                  console.error('Resposta não-JSON:', text);
+                  throw new Error('Resposta inválida do servidor');
                 }
 
-                const result = await response.json();
+                if (!response.ok) {
+                  throw new Error(result.error || result.message || 'Erro ao processar pagamento');
+                }
+
+                console.log('Resultado do pagamento:', result);
 
                 if (result.status === 'approved') {
                   setPaymentSuccess(true);
@@ -164,40 +180,50 @@ const DoacoesCheckout = () => {
                   setTimeout(() => {
                     navigate(`/doacoes/obrigado?donation_id=${donationId}`);
                   }, 2000);
-                  resolve();
-                } else if (result.status === 'pending') {
+                  return;
+                } else if (result.status === 'pending' || result.status === 'in_process') {
                   toast({
                     title: "Pagamento pendente",
-                    description: "Seu pagamento está sendo processado.",
+                    description: "Seu pagamento está sendo processado. Você receberá uma confirmação em breve.",
                   });
                   setTimeout(() => {
                     navigate(`/doacoes/obrigado?donation_id=${donationId}`);
                   }, 2000);
-                  resolve();
+                  return;
                 } else {
                   const errorMessage = getErrorMessage(result.status_detail || '');
-                  reject(new Error(errorMessage));
+                  throw new Error(errorMessage);
                 }
-              } catch (error: any) {
-                console.error('Erro ao processar pagamento:', error);
-                toast({
-                  title: "Pagamento não aprovado",
-                  description: error.message || "Verifique os dados do cartão e tente novamente.",
-                  variant: "destructive",
-                });
-                setProcessing(false);
-                reject(error);
+              } catch (fetchError: any) {
+                clearTimeout(timeoutId);
+
+                if (fetchError.name === 'AbortError') {
+                  throw new Error('O processamento está demorando mais que o esperado. Tente novamente.');
+                }
+                throw fetchError;
               }
-            });
+            } catch (error: any) {
+              console.error('Erro ao processar pagamento:', error);
+              setProcessing(false);
+
+              toast({
+                title: "Pagamento não aprovado",
+                description: error.message || "Verifique os dados do cartão e tente novamente.",
+                variant: "destructive",
+              });
+
+              throw error;
+            }
           },
           onError: (error: any) => {
             console.error('Erro no Mercado Pago Brick:', error);
+            setProcessing(false);
+
             toast({
               title: "Erro",
               description: "Erro ao processar pagamento. Tente novamente.",
               variant: "destructive",
             });
-            setProcessing(false);
           },
         },
       });
@@ -254,11 +280,14 @@ const DoacoesCheckout = () => {
                 </div>
               ) : (
                 <>
-                  <div id="mercadopago-checkout" className="min-h-[400px]">
+                  <div id="mercadopago-checkout" className="min-h-[400px] relative">
                     {processing && (
-                      <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin mb-4" />
-                        <p className="text-muted-foreground">Processando pagamento...</p>
+                      <div className="absolute inset-0 bg-background/95 backdrop-blur-sm flex flex-col items-center justify-center z-50 rounded-lg">
+                        <div className="bg-card p-8 rounded-lg shadow-lg text-center">
+                          <Loader2 className="h-12 w-12 animate-spin mb-4 mx-auto text-primary" />
+                          <p className="text-lg font-semibold mb-2">Processando pagamento</p>
+                          <p className="text-sm text-muted-foreground">Aguarde enquanto confirmamos sua doação...</p>
+                        </div>
                       </div>
                     )}
                   </div>
