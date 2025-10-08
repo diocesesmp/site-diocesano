@@ -65,13 +65,15 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Atualizar status da doação baseado no status do pagamento
+      // Mapear status do Mercado Pago para status da doação
       let donationStatus = "pending";
-      
+
       if (payment.status === "approved") {
         donationStatus = "completed";
       } else if (payment.status === "rejected" || payment.status === "cancelled") {
         donationStatus = "failed";
+      } else if (payment.status === "in_process" || payment.status === "pending") {
+        donationStatus = "pending";
       } else if (payment.status === "refunded" || payment.status === "charged_back") {
         donationStatus = "refunded";
       }
@@ -80,6 +82,7 @@ Deno.serve(async (req: Request) => {
         status: donationStatus,
         mp_payment_id: payment.id.toString(),
         mp_status: payment.status,
+        mp_status_detail: payment.status_detail,
       };
 
       // Adicionar informações adicionais para pagamentos aprovados
@@ -88,12 +91,19 @@ Deno.serve(async (req: Request) => {
         updateData.mp_transaction_amount = payment.transaction_amount;
       }
 
-      await supabase
+      console.log(`Webhook - Atualizando doação ${donationId}. Status MP: ${payment.status} -> Status Doação: ${donationStatus}`);
+
+      const { error: updateError } = await supabase
         .from("donations")
         .update(updateData)
         .eq("id", donationId);
 
-      console.log(`Doação ${donationId} atualizada para status: ${donationStatus}`);
+      if (updateError) {
+        console.error(`Erro ao atualizar doação ${donationId}:`, updateError);
+        throw new Error(`Erro ao atualizar doação: ${updateError.message}`);
+      }
+
+      console.log(`Doação ${donationId} atualizada com sucesso via webhook. Status: ${donationStatus}`);
     }
 
     return new Response(
