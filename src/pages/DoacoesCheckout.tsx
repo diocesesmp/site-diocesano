@@ -150,6 +150,7 @@ const DoacoesCheckout = () => {
                     donorEmail,
                     donorName,
                     donorPhone,
+                    publicKey,
                   }),
                   signal: controller.signal,
                 });
