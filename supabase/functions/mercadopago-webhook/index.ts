@@ -15,8 +15,17 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const body = await req.json();
+    // Parse seguro do corpo (alguns webhooks do MP podem vir sem JSON)
+    let body: any = null;
+    try {
+      body = await req.json();
+    } catch (_) {
+      body = null;
+    }
     console.log("Webhook recebido:", body);
+
+    const url = new URL(req.url);
+    const params = url.searchParams;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -34,13 +43,16 @@ Deno.serve(async (req: Request) => {
       throw new Error("Configurações do Mercado Pago não encontradas");
     }
 
-    // Mercado Pago envia notificações no formato: { type, data: { id } }
-    if (body.type === "payment") {
-      const paymentId = body.data.id;
+    // Suporte a ambos formatos: body.type/data.id e query params (?topic=payment&id=...)
+    const topic = body?.type || params.get("type") || params.get("topic");
+    const paymentId = body?.data?.id || params.get("data.id") || params.get("id");
+
+    if (topic === "payment" && paymentId) {
       console.log("Processando pagamento:", paymentId);
 
       // Buscar detalhes do pagamento no Mercado Pago
-      const accessToken = mpSettings.mp_live_access_token || mpSettings.mp_test_access_token;
+      const isTest = mpSettings.mp_environment === 'test';
+      const accessToken = isTest ? mpSettings.mp_test_access_token : mpSettings.mp_live_access_token;
       
       const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: {
