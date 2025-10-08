@@ -40,9 +40,11 @@ interface Donation {
   donor_email: string;
   donor_phone: string;
   amount: number;
-  status: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded' | string;
   created_at: string;
   stripe_payment_intent_id: string | null;
+  mp_payment_id?: string | null;
+  mp_status?: string | null;
   campaign_id: string;
   donation_campaigns: {
     title: string;
@@ -652,13 +654,13 @@ const AdminDonations = () => {
                           <TableCell>{donation.donation_campaigns?.title || 'N/A'}</TableCell>
                           <TableCell>R$ {Number(donation.amount).toFixed(2)}</TableCell>
                           <TableCell>
-                            <Badge variant={donation.status === 'completed' ? 'default' : 'secondary'}>
-                              {donation.status === 'completed' ? 'Concluída' : 'Pendente'}
+                            <Badge variant={donation.status === 'completed' ? 'default' : donation.status === 'failed' ? 'destructive' : 'secondary'}>
+                              {donation.status === 'completed' ? 'Concluída' : donation.status === 'failed' ? 'Recusada' : donation.status === 'refunded' ? 'Reembolsada' : 'Pendente'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {donation.stripe_payment_intent_id || 'N/A'}
-                          </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {donation.mp_payment_id || donation.stripe_payment_intent_id || 'N/A'}
+                            </TableCell>
                           <TableCell>
                             {donation.status === 'completed' && (
                               <Button
