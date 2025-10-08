@@ -18,7 +18,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
-    const { donationId, campaignId, amount, paymentData, donorEmail, donorName, donorPhone } = body;
+    const { donationId, campaignId, amount, paymentData, donorEmail, donorName, donorPhone, publicKey } = body;
 
     console.log("Processando pagamento Mercado Pago:", { donationId, amount });
 
@@ -71,7 +71,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const isTestMode = mpSettings.mp_environment === 'test';
+    const keyHint = (publicKey as string | undefined) || '';
+    const isTestFromKey = keyHint.startsWith('TEST-');
+    const isLiveFromKey = keyHint.startsWith('APP_USR-');
+    const isTestMode = isTestFromKey ? true : isLiveFromKey ? false : mpSettings.mp_environment === 'test';
     const accessToken = isTestMode
       ? mpSettings.mp_test_access_token
       : mpSettings.mp_live_access_token;
