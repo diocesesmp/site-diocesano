@@ -36,32 +36,64 @@ const DoacoesObrigado = () => {
       return;
     }
 
-    const loadDonation = async () => {
+    let isMounted = true;
+    let attempts = 0;
+    let intervalId: number | undefined;
+
+    const fetchDonation = async () => {
       try {
-        const paymentIntent = searchParams.get('payment_intent');
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/donation-status`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
-          },
-          body: JSON.stringify({ donationId, paymentIntentId: paymentIntent || undefined })
-        });
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err.error || 'Falha ao carregar status da doação');
-        }
-        const data = await response.json();
+        const { data, error } = await supabase
+          .from('donations')
+          .select(`
+            id,
+            donor_name,
+            donor_email,
+            donor_phone,
+            amount,
+            status,
+            created_at,
+            campaign_id,
+            donation_campaigns (
+              title,
+              image_url
+            )
+          `)
+          .eq('id', donationId)
+          .single();
+
+        if (error) throw error;
+        if (!isMounted) return;
         setDonation(data);
+
+        // Parar o polling quando não estiver mais pendente
+        if (data.status !== 'pending' && intervalId) {
+          clearInterval(intervalId);
+          intervalId = undefined;
+        }
       } catch (error) {
         console.error('Erro ao carregar doação:', error);
       } finally {
-        setLoading(false);
+        if (loading) setLoading(false);
       }
     };
 
-    loadDonation();
-  }, [donationId, searchParams, navigate]);
+    // Carrega imediatamente e inicia polling por até ~60s
+    fetchDonation();
+    intervalId = setInterval(() => {
+      attempts++;
+      if (attempts <= 20) {
+        fetchDonation();
+      } else if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = undefined;
+      }
+    }, 3000) as unknown as number;
+
+    return () => {
+      isMounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [donationId, navigate]);
 
   const generatePDFReceipt = async () => {
     if (!donation) return;
