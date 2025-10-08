@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Diocese de São Miguel Paulista - Design System
+All colors MUST be HSL for consistency and theming.
+*/
+
+@layer base {
+  :root {
+    /* Brand Colors - Diocese de São Miguel Paulista */
+    --primary: 217 54% 28%;        /* #293B5F - Azul Institucional */
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 217 54% 35%;
+    --primary-dark: 217 54% 20%;
+    
+    --secondary: 210 40% 92%;      /* #E5EAF5 - Cinza Claro */
+    --secondary-foreground: 217 54% 28%;
+    
+    --accent: 48 89% 50%;          /* #D4AF37 - Dourado Elegante */
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 48 89% 60%;
+    --accent-dark: 48 89% 40%;
+
+    /* Base Colors */
+    --background: 0 0% 100%;
+    --foreground: 217 54% 15%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 217 54% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 54% 15%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 217 40% 45%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 40% 90%;
+    --input: 210 40% 90%;
+    --ring: 217 54% 28%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-light)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary-dark)), hsl(var(--primary)));
+    
+    /* Shadows */
+    --shadow-soft: 0 4px 12px hsl(var(--primary) / 0.1);
+    --shadow-medium: 0 8px 24px hsl(var(--primary) / 0.15);
+    --shadow-accent: 0 4px 16px hsl(var(--accent) / 0.25);
+
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 217 54% 8%;
+    --foreground: 210 40% 98%;
+    
+    --card: 217 54% 10%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 217 54% 10%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 48 89% 50%;
+    --primary-foreground: 217 54% 15%;
+
+    --secondary: 217 40% 15%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 40% 15%;
+    --muted-foreground: 210 20% 65%;
+
+    --accent: 48 89% 50%;
+    --accent-foreground: 217 54% 15%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 40% 20%;
+    --input: 217 40% 20%;
+    --ring: 48 89% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-primary font-semibold;
+  }
+}
+
+@layer components {
+  /* Custom scroll styling */
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+
+  /* Hero gradient background */
+  .bg-hero-gradient {
+    background: var(--gradient-hero);
+  }
+
+  /* Accent gradient background */
+  .bg-accent-gradient {
+    background: var(--gradient-accent);
+  }
+
+  /* Soft shadow utility */
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .shadow-medium {
+    box-shadow: var(--shadow-medium);
+  }
+
+  .shadow-accent {
+    box-shadow: var(--shadow-accent);
+  }
+
+  /* Smooth transitions */
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+
+  .transition-bounce {
+    transition: var(--transition-bounce);
+  }
+}
