@@ -4,8 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Settings, FileText, Calendar, Users, Image, BookOpen, Newspaper, Chrome as Home, CreditCard, ExternalLink } from "lucide-react";
-import { Crown, Clock, Heart } from "lucide-react";
+import { LogOut, Settings, FileText, Calendar, Users, Image, BookOpen, Chrome as Home, CreditCard, ExternalLink, Crown, Clock, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Componentes do painel admin (vão ser criados separadamente)
@@ -104,60 +103,87 @@ const AdminPage = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="articles" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-13">
-            <TabsTrigger value="articles" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Notícias</span>
-            </TabsTrigger>
-            <TabsTrigger value="events" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              <span className="hidden sm:inline">Eventos</span>
-            </TabsTrigger>
-            <TabsTrigger value="messages" className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Mensagens</span>
-            </TabsTrigger>
-            <TabsTrigger value="photos" className="flex items-center gap-2">
-              <Image className="h-4 w-4" />
-              <span className="hidden sm:inline">Galeria</span>
-            </TabsTrigger>
-            <TabsTrigger value="clergy" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Clero</span>
-            </TabsTrigger>
-            <TabsTrigger value="parishes" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Paróquias</span>
-            </TabsTrigger>
-            <TabsTrigger value="bishop" className="flex items-center gap-2">
-              <Crown className="h-4 w-4" />
-              <span className="hidden sm:inline">Bispo</span>
-            </TabsTrigger>
-            <TabsTrigger value="donations" className="flex items-center gap-2">
-              <Heart className="h-4 w-4" />
-              <span className="hidden sm:inline">Doações</span>
-            </TabsTrigger>
-            <TabsTrigger value="pagarme" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              <span className="hidden sm:inline">Pagar.me</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Configurações</span>
-            </TabsTrigger>
-            <TabsTrigger value="cloudinary" className="flex items-center gap-2">
-              <Image className="h-4 w-4" />
-              <span className="hidden sm:inline">Cloudinary</span>
-            </TabsTrigger>
-            <TabsTrigger value="timeline" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span className="hidden sm:inline">Timeline</span>
-            </TabsTrigger>
-            <TabsTrigger value="links" className="flex items-center gap-2">
-              <ExternalLink className="h-4 w-4" />
-              <span className="hidden sm:inline">Links</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="space-y-4">
+            {/* Seção de Conteúdo */}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2 px-1">Conteúdo</h3>
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 h-auto p-2">
+                <TabsTrigger value="articles" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span>Notícias</span>
+                </TabsTrigger>
+                <TabsTrigger value="events" className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>Eventos</span>
+                </TabsTrigger>
+                <TabsTrigger value="messages" className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  <span>Mensagens</span>
+                </TabsTrigger>
+                <TabsTrigger value="photos" className="flex items-center gap-2">
+                  <Image className="h-4 w-4" />
+                  <span>Galeria</span>
+                </TabsTrigger>
+                <TabsTrigger value="timeline" className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Timeline</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Seção de Pessoas */}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2 px-1">Pessoas</h3>
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 gap-2 h-auto p-2">
+                <TabsTrigger value="bishop" className="flex items-center gap-2">
+                  <Crown className="h-4 w-4" />
+                  <span>Bispo</span>
+                </TabsTrigger>
+                <TabsTrigger value="clergy" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>Clero</span>
+                </TabsTrigger>
+                <TabsTrigger value="parishes" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>Paróquias</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Seção Financeiro */}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2 px-1">Financeiro</h3>
+              <TabsList className="grid w-full grid-cols-2 gap-2 h-auto p-2">
+                <TabsTrigger value="donations" className="flex items-center gap-2">
+                  <Heart className="h-4 w-4" />
+                  <span>Doações</span>
+                </TabsTrigger>
+                <TabsTrigger value="pagarme" className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  <span>Pagar.me</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Seção de Configurações */}
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2 px-1">Configurações</h3>
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 gap-2 h-auto p-2">
+                <TabsTrigger value="settings" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  <span>Geral</span>
+                </TabsTrigger>
+                <TabsTrigger value="cloudinary" className="flex items-center gap-2">
+                  <Image className="h-4 w-4" />
+                  <span>Cloudinary</span>
+                </TabsTrigger>
+                <TabsTrigger value="links" className="flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  <span>Links</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
 
           <TabsContent value="articles">
             <AdminArticles />
