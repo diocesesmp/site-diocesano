@@ -59,24 +59,28 @@ const Header = () => {
 
   return (
     <header className="bg-background shadow-medium sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link to="/">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center py-3 md:py-4">
+          {/* Logo - Otimizado para mobile */}
+          <div className="flex items-center min-w-0 flex-1 lg:flex-initial">
+            <Link to="/" className="flex items-center min-w-0">
               {siteSettings?.logo_url ? (
-                <img src={siteSettings.logo_url} alt="Logo da Diocese" className="h-12 w-12 object-contain mr-3" />
+                <img 
+                  src={siteSettings.logo_url} 
+                  alt="Logo da Diocese" 
+                  className="h-10 w-10 md:h-12 md:w-12 object-contain mr-2 md:mr-3 flex-shrink-0" 
+                />
               ) : (
-                <div className="h-12 w-12 bg-primary rounded-full flex items-center justify-center mr-3">
-                  <span className="text-primary-foreground font-bold text-lg">D</span>
+                <div className="h-10 w-10 md:h-12 md:w-12 bg-primary rounded-full flex items-center justify-center mr-2 md:mr-3 flex-shrink-0">
+                  <span className="text-primary-foreground font-bold text-base md:text-lg">D</span>
                 </div>
               )}
+              <div className="min-w-0">
+                <h1 className="text-sm md:text-xl font-bold text-primary truncate">
+                  {siteSettings?.site_name || "Diocese de São Miguel Paulista"}
+                </h1>
+              </div>
             </Link>
-            <div>
-              <h1 className="text-xl font-bold text-primary">
-                {siteSettings?.site_name || "Diocese de São Miguel Paulista"}
-              </h1>
-            </div>
           </div>
 
           {/* Desktop Navigation */}
@@ -128,10 +132,14 @@ const Header = () => {
           </nav>
 
           {/* Mobile menu button */}
-          <div className="lg:hidden flex items-center gap-2">
-            <GlobalSearch placeholder="Buscar..." />
+          <div className="lg:hidden flex items-center gap-1.5">
+            <div className="w-32 sm:w-auto">
+              <GlobalSearch placeholder="Buscar..." />
+            </div>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-1.5 rounded-md hover:bg-secondary transition-smooth"
+              aria-label="Menu"
             >
               {isMenuOpen ? (
                 <X className="h-6 w-6 text-primary" />
@@ -142,23 +150,25 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - Melhorado */}
         {isMenuOpen && (
-          <nav className="lg:hidden pb-4">            
-            <div className="space-y-1">
+          <nav className="lg:hidden pb-3 border-t border-border mt-2">            
+            <div className="space-y-0.5 pt-2">
               {navigationItems.map((item) => (
                 <div key={item.name}>
                   {item.submenu ? (
                     <div>
-                      <button className="w-full text-left px-3 py-2 text-foreground hover:bg-secondary rounded-md transition-smooth">
+                      <button className="w-full text-left px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary rounded-md transition-smooth flex items-center justify-between">
                         {item.name}
+                        <ChevronDown className="h-4 w-4" />
                       </button>
-                      <div className="ml-4 space-y-1">
+                      <div className="ml-3 space-y-0.5 mt-0.5">
                         {item.submenu.map((subItem) => (
                           <a
                             key={subItem.name}
                             href={subItem.href}
                             className="block px-3 py-2 text-sm text-muted-foreground hover:text-primary hover:bg-secondary rounded-md transition-smooth"
+                            onClick={() => setIsMenuOpen(false)}
                           >
                             {subItem.name}
                           </a>
@@ -168,16 +178,17 @@ const Header = () => {
                   ) : (
                     <a
                       href={item.href}
-                      className="block px-3 py-2 text-foreground hover:bg-secondary hover:text-primary rounded-md transition-smooth"
+                      className="block px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary hover:text-primary rounded-md transition-smooth"
+                      onClick={() => setIsMenuOpen(false)}
                     >
                       {item.name}
                     </a>
                   )}
                 </div>
               ))}
-              <div className="pt-2">
+              <div className="pt-3">
                 <Button variant="accent" size="sm" className="w-full" asChild>
-                  <a href="/contato">
+                  <a href="/contato" onClick={() => setIsMenuOpen(false)}>
                     Contato
                   </a>
                 </Button>
